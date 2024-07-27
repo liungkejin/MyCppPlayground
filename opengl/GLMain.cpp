@@ -3,6 +3,7 @@
 //
 
 #include "GLRenderer.h"
+#include "opengl/wrap/filter/BaseFilter.h"
 
 // Dear ImGui: standalone example application for GLFW + OpenGL 3, using programmable pipeline
 // (GLFW is a cross-platform general purpose library for handling windows, inputs, OpenGL/Vulkan/Metal graphics context creation, etc.)
@@ -151,6 +152,8 @@ int GLRenderer::run(int width, int height, const char *title) {
 #ifdef __EMSCRIPTEN__
     EMSCRIPTEN_MAINLOOP_END;
 #endif
+
+    GLRenderer::onExit();
 
     // Cleanup
     ImGui_ImplOpenGL3_Shutdown();

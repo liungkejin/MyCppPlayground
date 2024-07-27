@@ -2,17 +2,38 @@
 // Created by LiangKeJin on 2024/7/27.
 //
 #include "GLRenderer.h"
+#include "wrap/filter/TextureFilter.h"
+#include "wrap/filter/NV21Filter.h"
+
+using namespace wuta;
+
+ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+uint8_t pixels[100*100*4] = {
+        0, 0, 0, 255,
+        255, 255, 0, 255,
+        0, 0, 0, 255,
+        255, 0, 0, 255};
+
+NV21Filter nv21Filter;
+TextureFilter filter;
+Texture2D texture2D(100,100);
+GLRect rect;
+
+void GLRenderer::onRender(int width, int height) {
+    GLUtil::clearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
+
+    texture2D.update(pixels);
+    filter.setViewport(width, height);
+    filter.inputTexture(texture2D);
+    rect.setRect(0, 0, width, height);
+    rect.scale(0.5, 0.5);
+    rect.setRotation(30);
+    filter.setVertexCoord(rect, width, height);
+    filter.render();
+}
 
 bool show_demo_window = true;
 bool show_another_window = false;
-ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-
-void GLRenderer::onRender(int width, int height) {
-    glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
-    glClear(GL_COLOR_BUFFER_BIT);
-}
-
-
 void GLRenderer::onRenderImgui(int width, int height, ImGuiIO& io) {
     // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
     if (show_demo_window)
@@ -54,4 +75,9 @@ void GLRenderer::onRenderImgui(int width, int height, ImGuiIO& io) {
 
 void GLRenderer::onPostRender(int width, int height) {
     //
+}
+
+void GLRenderer::onExit() {
+    filter.release();
+    texture2D.release();
 }

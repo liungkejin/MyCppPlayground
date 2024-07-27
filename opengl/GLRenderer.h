@@ -22,4 +22,7 @@ private:
 
     // 在 Imgui::render() 之后
     static void onPostRender(int width, int height);
+
+    // 窗口关闭
+    static void onExit();
 };
