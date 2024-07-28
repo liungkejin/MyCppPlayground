@@ -35,59 +35,74 @@ enum DataType {
     SAMPLER_CUBE = GL_SAMPLER_CUBE,
 };
 
-class VAO {
+class VBO {
 public:
-    explicit VAO(GLenum usage = GL_DYNAMIC_DRAW) : m_usage(usage) {}
-    ~VAO() {
+    explicit VBO(GLenum usage = GL_STREAM_DRAW) : m_usage(usage) {}
+    ~VBO() {
         if (m_size != -1) {
-            glDeleteVertexArrays(1, &m_vao);
             glDeleteBuffers(1, &m_vbo);
+            _INFO("delete vbo: %d", m_vbo);
             m_size = -1;
         }
     }
 
-    void update(GLuint loc, void *points, int byteSize, GLint vecSize,
-                GLint unitSize = sizeof(float), GLenum dataType = GL_FLOAT, GLboolean norm = GL_FALSE) {
-        GLsizei stride = vecSize * unitSize;
+    void bind(const void *points, int byteSize) {
         if (m_size != byteSize) {
             if (m_size != -1) {
-                glDeleteVertexArrays(1, &m_vao);
                 glDeleteBuffers(1, &m_vbo);
             }
-            glGenVertexArrays(1, &m_vao);
             glGenBuffers(1, &m_vbo);
 
-            glBindVertexArray(m_vao);
             glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
             glBufferData(GL_ARRAY_BUFFER, byteSize, points, m_usage);
-
-            glVertexAttribPointer(loc, vecSize,
-                                  dataType, norm,  stride, nullptr);
-            glEnableVertexAttribArray(loc);
-            glBindBuffer(GL_ARRAY_BUFFER, 0);
-            glBindVertexArray(0);
             m_size = byteSize;
         } else {
-            glBindVertexArray(m_vao);
             glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
             glBufferSubData(GL_ARRAY_BUFFER, 0, byteSize, points);
-            glVertexAttribPointer(loc, vecSize,
-                                  dataType, norm,  stride, nullptr);
-            glEnableVertexAttribArray(loc);
-            glBindBuffer(GL_ARRAY_BUFFER, 0);
-            glBindVertexArray(0);
         }
     }
 
     void bind() const {
-        glBindVertexArray(m_vao);
+        glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
+    }
+
+    static void unbind() {
+        glBindVertexArray(0);
     }
 
 private:
-    GLenum m_usage = GL_DYNAMIC_DRAW;
+    GLenum m_usage;
     unsigned int m_vbo = 0;
-    unsigned int m_vao = 0;
     int m_size = -1;
+};
+
+class VAO {
+public:
+    ~VAO() {
+        release();
+    }
+
+    void bind() const {
+        if (m_vao == -1) {
+            glGenVertexArrays(1, (GLuint *)&m_vao);
+        }
+        glBindVertexArray(m_vao);
+    }
+
+    static void unbind() {
+        glBindVertexArray(0);
+    }
+
+    void release() {
+        if (m_vao != -1) {
+            glDeleteVertexArrays(1, (GLuint *)&m_vao);
+            _INFO("delete vao: %d", m_vao);
+            m_vao = -1;
+        }
+    }
+
+private:
+    GLint m_vao = -1;
 };
 
 class Program;
@@ -171,9 +186,6 @@ public:
         m_data.put(a, sizeof(a));
     }
 
-public:
-    virtual void input(GLint progId) = 0;
-
 protected:
     int ivalue(int i) { return m_data.at<int>(i); }
 
@@ -195,7 +207,7 @@ class Uniform : public ProgField {
 public:
     Uniform(const char *name, DataType type, int unitIndex = -1) : ProgField(name, type), m_tex_unit_index(unitIndex) {}
 
-    void input(GLint progId) override {
+    void input(GLint progId) {
         std::lock_guard<std::mutex> lock(m_update_mutex);
         if (m_location < 0) {
             m_location = glGetUniformLocation(progId, m_name.c_str());
@@ -284,7 +296,7 @@ public:
         m_bind_coord = &coords;
     }
 
-    void input(GLint progId) override {
+    void input(GLint progId, const VAO& vao) {
         std::lock_guard<std::mutex> lock(m_update_mutex);
         if (m_location < 0) {
             m_location = glGetAttribLocation(progId, m_name.c_str());
@@ -315,11 +327,16 @@ public:
                 dataSize = m_data.getPutSize<float>();
             }
 
-//            _INFO("input(%d), [%f, %f, %f, %f, %f, %f, %f, %f]", dataSize, d[0], d[1], d[2], d[3], d[4], d[5], d[6], d[7]);
             int unitSize = sizeof(float);
-            m_vao.update(loc, (void *)d, dataSize * unitSize,
-                         m_vec_size, unitSize, GL_FLOAT, m_normalized);
-            m_vao.bind();
+            m_vbo.bind((const void *)d, dataSize*unitSize);
+            vao.bind();
+            glVertexAttribPointer(loc, m_vec_size,
+                                  GL_FLOAT, m_normalized,  0, nullptr);
+            glEnableVertexAttribArray(loc);
+            VAO::unbind();
+            VBO::unbind();
+//            CHECK_GL_ERROR
+//            _INFO("input(%d), [%f, %f, %f, %f, %f, %f, %f, %f]", dataSize, d[0], d[1], d[2], d[3], d[4], d[5], d[6], d[7]);
             break;
         }
         default :
@@ -333,7 +350,7 @@ private:
     bool m_normalized = false;
     GLCoord *m_bind_coord = nullptr;
 
-    VAO m_vao;
+    VBO m_vbo;
 };
 
 class Program {
@@ -392,17 +409,17 @@ public:
         _FATAL_IF(!m_attached, "gl program(%d) not attached while input", m_id);
 
         for (auto &kv : m_attr_map) {
-            kv.second->input(m_id);
-            CHECK_GL_ERROR
+            kv.second->input(m_id, m_vao);
         }
         for (auto &kv : m_uniform_map) {
             kv.second->input(m_id);
-            CHECK_GL_ERROR
         }
+        m_vao.bind();
     }
 
     void detach() {
         if (m_attached) {
+            VAO::unbind();
             glUseProgram(0);
             m_attached = false;
         } else {
@@ -465,6 +482,8 @@ public:
             delete pair.second;
         }
         m_uniform_map.clear();
+
+        m_vao.release();
     }
 
 private:
@@ -483,6 +502,7 @@ private:
     bool m_attached = false;
     int m_uniform_texture_count = 0;
 
+    VAO m_vao;
     std::map<std::string, Attribute *> m_attr_map;
     std::map<std::string, Uniform *> m_uniform_map;
 };
