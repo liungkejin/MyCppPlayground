@@ -31,24 +31,24 @@ public:
         m_viewport.set(x, y, width, height, scissor);
     }
 
-    void setVertexCoord(const GLRect &rect, float viewW, float viewH) {
+    virtual void setVertexCoord(const GLRect &rect, float viewW, float viewH) {
         m_vertex_coords.setByGLRect(viewW, viewH, rect);
     }
 
-    void setVertexCoord(const float *ps, int size) {
+    virtual void setVertexCoord(const float *ps, int size) {
         m_vertex_coords.set(ps, size);
     }
 
-    void setTextureCoord(const GLRect &rect, float texW, float texH) {
+    virtual void setTextureCoord(const GLRect &rect, float texW, float texH) {
         m_texture_coords.setByGLRect(texW, texH, rect);
     }
 
     // rotation 只支持 0, 90, 180, 270
-    void setTextureCoord(int rotation, bool flipH, bool flipV) {
+    virtual void setTextureCoord(int rotation, bool flipH, bool flipV) {
         m_texture_coords.setFullCoord(rotation, flipH, flipV);
     }
 
-    void setTextureCoord(const float *ps, int size) {
+    virtual void setTextureCoord(const float *ps, int size) {
         m_texture_coords.set(ps, size);
     }
 

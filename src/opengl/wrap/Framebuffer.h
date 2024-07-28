@@ -35,7 +35,12 @@ public:
 
     inline GLuint id() const { return m_fb_id; }
 
-    inline Texture2D *texture() const { return m_texture; }
+    inline const Texture2D *texture() const { return m_texture; }
+
+    inline const Texture2D& textureNonnull() const {
+        _FATAL_IF(!m_texture, "texture of framebuffer is nullptr");
+        return *m_texture;
+    }
 
     inline GLuint texID() const { return m_texture == nullptr ? INVALID_GL_ID : m_texture->id(); }
 

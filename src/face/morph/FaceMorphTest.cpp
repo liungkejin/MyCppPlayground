@@ -134,5 +134,5 @@ void FaceMorphTest::test() {
     aimage.detect(faceDetector);
     bimage.detect(faceDetector);
 
-    aimage.morph(bimage);
+    aimage.morph(bimage, true);
 }

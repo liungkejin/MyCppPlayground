@@ -4,6 +4,7 @@
 #include "GLRenderer.h"
 #include "wrap/filter/TextureFilter.h"
 #include "wrap/filter/NV21Filter.h"
+#include "GLFaceMorph.h"
 
 using namespace wuta;
 
@@ -14,27 +15,28 @@ uint8_t pixels[100*100*4] = {
         0, 0, 0, 255,
         255, 0, 0, 255};
 
-NV21Filter nv21Filter;
-TextureFilter filter;
-Texture2D texture2D(100,100);
-GLRect rect;
+//NV21Filter nv21Filter;
+//TextureFilter filter;
+//Texture2D texture2D(100,100);
+//GLRect rect;
 
 int i = 0;
-float rotate = 0;
+float percent = 0;
 void GLRenderer::onRender(int width, int height) {
     GLUtil::clearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
-//    memset(pixels+4*100*10, 128, 100*4*50);
-    pixels[i] = 255;
-    i = (i+1)%(40000);
-    texture2D.update(pixels);
-    filter.setViewport(width, height);
-    filter.inputTexture(texture2D);
-    rect.setRect(0, 0, 500, 500);
-//    rect.scale(0.5, 0.5);
-    rect.translate(width/2 - 250, height/2 - 250);
-    rect.setRotation(rotate);
-    filter.setVertexCoord(rect, width, height);
-    filter.render();
+//    pixels[i] = 255;
+//    i = (i+1)%(40000);
+//    texture2D.update(pixels);
+//    filter.setViewport(width, height);
+//    filter.inputTexture(texture2D);
+//    rect.setRect(0, 0, 500, 500);
+////    rect.scale(0.5, 0.5);
+//    rect.translate(width/2 - 250, height/2 - 250);
+//    rect.setRotation(rotate);
+//    filter.setVertexCoord(rect, width, height);
+//    filter.render();
+
+    GLFaceMorph::test(width, height, percent);
 }
 
 bool show_demo_window = false;
@@ -52,8 +54,8 @@ void GLRenderer::onRenderImgui(int width, int height, ImGuiIO& io) {
         ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
         ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
 
-        ImGui::SliderFloat("rotate", &rotate, 0.0f, 360.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-        ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
+        ImGui::SliderFloat("percent", &percent, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
+//        ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
 
         if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
             counter++;
@@ -70,6 +72,6 @@ void GLRenderer::onPostRender(int width, int height) {
 }
 
 void GLRenderer::onExit() {
-    filter.release();
-    texture2D.release();
+//    filter.release();
+//    texture2D.release();
 }

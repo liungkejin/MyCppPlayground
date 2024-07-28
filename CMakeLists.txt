@@ -33,6 +33,7 @@ set(OPENGL_SRC
         src/opengl/wrap/filter/BaseFilter.h
         src/opengl/wrap/filter/NV21Filter.h
         src/opengl/wrap/filter/TextureFilter.h
+        src/opengl/wrap/filter/FaceMorphFilter.h
         src/opengl/wrap/Framebuffer.h
         src/opengl/wrap/FramebufferPool.h
         src/opengl/wrap/GLCoord.h
@@ -42,6 +43,7 @@ set(OPENGL_SRC
         src/opengl/wrap/Viewport.h
         src/opengl/GLMain.cpp
         src/opengl/GLRenderer.cpp
+        src/opengl/GLFaceMorph.cpp
 )
 
 set(GLFW_INSTALL OFF)

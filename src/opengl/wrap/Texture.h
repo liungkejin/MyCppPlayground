@@ -7,6 +7,7 @@
 #pragma once
 
 #include "GLUtil.h"
+#include "base/Array.h"
 
 NAMESPACE_WUTA
 
@@ -50,13 +51,17 @@ public:
     Texture2D(const Texture2D &o) : Texture(o), m_params(o.m_params) {}
 
 public:
-    void update(void *pixels) {
+    void update(const void *pixels) {
         if (valid()) {
             updateTexture2D(m_id, m_width, m_height, m_params, pixels);
         } else {
             m_id = genTexture2D(m_width, m_height, m_params, pixels);
             _INFO("Texture2D created: %d, %d, %d", m_id, m_width, m_height);
         }
+    }
+
+    const TexParams& params() const {
+        return m_params;
     }
 
     void release() {
@@ -76,13 +81,13 @@ public:
         return tex;
     }
 
-    static void updateTexture2D(GLuint id, GLuint width, GLuint height, const TexParams &params, void *pixels) {
+    static void updateTexture2D(GLuint id, GLuint width, GLuint height, const TexParams &params, const void *pixels) {
         glBindTexture(GL_TEXTURE_2D, id);
         glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, params.format, params.type, pixels);
         glBindTexture(GL_TEXTURE_2D, 0);
     }
 
-    static int genTexture2D(GLuint width, GLuint height, const TexParams &params, void *pixels) {
+    static GLuint genTexture2D(GLuint width, GLuint height, const TexParams &params, const void *pixels) {
         GLuint texture;
         glGenTextures(1, &texture);
         glBindTexture(GL_TEXTURE_2D, texture);
@@ -98,6 +103,81 @@ public:
 
 private:
     TexParams m_params;
+};
+
+class ImageTexture {
+public:
+    ~ImageTexture() {
+        DELETE_TO_NULL(m_tex);
+    }
+
+    void set(const uint8_t * data, int width, int height, GLenum format = GL_RGBA) {
+        int channels;
+        switch (format) {
+            case GL_RGBA:
+            case GL_BGRA:
+                channels = 4;
+                break;
+            case GL_BGR:
+            case GL_RGB:
+                channels = 3;
+                break;
+            case GL_ALPHA:
+                channels = 1;
+                break;
+            default:
+                _FATAL("unsupported image format: %d", format);
+                break;
+        }
+
+        std::lock_guard<std::mutex> lock(m_update_mutex);
+
+        int dataSize = width * height * channels;
+        m_img.put(data, dataSize);
+        m_width = width;
+        m_height = height;
+        m_format = format;
+        m_tex_need_update = true;
+    }
+
+    Texture2D& textureNonnull() {
+        Texture2D * tex = texture();
+        _FATAL_IF(!tex, "texture is nullptr!!")
+        return *tex;
+    }
+
+    Texture2D* texture() {
+        if (m_width == 0 || m_height == 0) {
+            _WARN("image not set! get texture failed!");
+            return nullptr;
+        }
+
+        std::lock_guard<std::mutex> lock(m_update_mutex);
+        if (m_tex == nullptr || m_tex->width() != m_width || m_tex->height() != m_height || m_tex->params().format != m_format) {
+            DELETE_TO_NULL(m_tex);
+            TexParams params = {
+                    .format = m_format
+            };
+            m_tex = new Texture2D(m_width, m_height, params);
+        }
+
+        if (m_tex_need_update) {
+            m_tex->update(m_img.bytes());
+            m_tex_need_update = false;
+        }
+
+        return m_tex;
+    }
+
+private:
+    Array m_img;
+    int m_width = 0;
+    int m_height = 0;
+    GLenum m_format = GL_RGBA;
+    Texture2D *m_tex = nullptr;
+    bool m_tex_need_update = false;
+
+    std::mutex m_update_mutex;
 };
 
 NAMESPACE_END

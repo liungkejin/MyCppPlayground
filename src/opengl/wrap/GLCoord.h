@@ -251,6 +251,7 @@ public:
             coords[5] = flip(coords[5]);
             coords[7] = flip(coords[7]);
         }
+        m_size = size;
         return coords;
     }
 
@@ -274,7 +275,7 @@ public:
      * 计算 x, y , width, height 区域在 texWidth, textHeight 下经过 flipH, flipV 之后的纹理坐标
      * @return 纹理坐标
      */
-    const float *setRect(float x, float y, float w, float h, float texW, float texH, bool flipH, float flipV) {
+    const float *setRect(float x, float y, float w, float h, float texW, float texH, bool flipH, bool flipV) {
         std::lock_guard<std::mutex> lock(m_update_mutex);
         int size = TEX_COORD_SIZE;
         float *coords = obtainCoords(size);
@@ -300,6 +301,7 @@ public:
             std::swap(coords[3], coords[5]);
         }
 
+        m_size = size;
         return coords;
     }
 
