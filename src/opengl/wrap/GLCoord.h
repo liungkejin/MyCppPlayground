@@ -126,8 +126,8 @@ public:
 
 private:
     void toGLCoords(float outW, float outH, float *coords) const {
-        float cx = (x + width) / 2.0f / outW;
-        float cy = (y + height) / 2.0f / outH;
+        float cx = (x + width/2.0f);
+        float cy = (y + height/2.0f);
         float cosTheta = cos(rotation * M_PI / 180.0f);
         float sinTheta = sin(rotation * M_PI / 180.0f);
         // 按照default的顺序，依次是 坐下，右下，左上，右上
@@ -135,14 +135,17 @@ private:
         float x2 = x + width, y2 = y + height;
         float x3 = x, y3 = y;
         float x4 = x2, y4 = y;
-        x1 /= outW, y1 /= outH;
-        x2 /= outW, y2 /= outH;
-        x3 /= outW, y3 /= outH;
-        x4 /= outW, y4 /= outH;
         MathUtils::rotatePoint(x1, y1, cx, cy, sinTheta, cosTheta);
         MathUtils::rotatePoint(x2, y2, cx, cy, sinTheta, cosTheta);
         MathUtils::rotatePoint(x3, y3, cx, cy, sinTheta, cosTheta);
         MathUtils::rotatePoint(x4, y4, cx, cy, sinTheta, cosTheta);
+
+        // 必须先旋转再归一化，不然旋转后的尺寸就变了
+        x1 /= outW, y1 /= outH;
+        x2 /= outW, y2 /= outH;
+        x3 /= outW, y3 /= outH;
+        x4 /= outW, y4 /= outH;
+
         coords[0] = x1, coords[1] = y1;
         coords[2] = x2, coords[3] = y2;
         coords[4] = x3, coords[5] = y3;
