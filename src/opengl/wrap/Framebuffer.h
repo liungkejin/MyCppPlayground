@@ -117,7 +117,7 @@ private:
             return;
         }
 
-        _INFO("Framebuffer(%d)e::detachColorTexture(%d), own: %d", m_texture->id(), m_owning_texture);
+        _INFO("Framebuffer(%d)e::detachColorTexture(%d), own: %d", m_fb_id, m_texture->id(), m_owning_texture);
         if (m_fb_id != INVALID_GL_ID) {
             glBindFramebuffer(GL_FRAMEBUFFER, m_fb_id);
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
