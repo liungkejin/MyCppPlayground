@@ -1,10 +1,10 @@
-#include <iostream>
 #include "opengl/GLRenderer.h"
-#include "Playground.h"
+#include "face/morph/FaceMorph.h"
 
 // Main code
 int main(int argc, char** argv)
 {
-    GLRenderer::run();
+    FaceMorphTest::test();
+//    GLRenderer::run();
     return 0;
 }

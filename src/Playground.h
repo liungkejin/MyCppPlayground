@@ -5,6 +5,8 @@
 
 #include "Log.h"
 
+#define ASSERTS_PATH "../assets"
+
 #define ERROR_CODE_NULLPTR (-12345)
 
 // 为了防止缩进，IDE 无法修改namespace的缩进
