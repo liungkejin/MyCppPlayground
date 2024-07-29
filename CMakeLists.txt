@@ -3,6 +3,10 @@ project(MyCppPlayground)
 
 set(CMAKE_CXX_STANDARD 17)
 
+add_definitions(-D__OS_MAC__)
+#add_definitions(-D__OS_HARMONY__)
+#add_definitions(-D__OPENGL_ES__)
+
 find_package(OpenGL REQUIRED)
 find_package(OpenCV REQUIRED)
 

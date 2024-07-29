@@ -8,7 +8,7 @@
 
 #include <Playground.h>
 
-#ifdef HARMONY_OS
+#ifdef __OS_HARMONY__
 #include <GLES3/gl3.h>
 #else
 #include <OpenGL/gl3.h>

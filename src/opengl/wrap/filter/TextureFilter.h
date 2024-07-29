@@ -20,7 +20,7 @@ public:
     }
 
     const char *vertexShader() override {
-#ifdef GL_ES
+#ifndef GLAPI
         return R"(
         attribute vec4 position;
         attribute vec2 inputTextureCoordinate;
@@ -43,7 +43,7 @@ public:
     }
 
     const char *fragmentShader() override {
-#ifdef GL_ES
+#ifndef GLAPI
         return R"(
         varying highp vec2 textureCoordinate;
         uniform sampler2D inputImageTexture;

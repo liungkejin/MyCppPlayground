@@ -11,7 +11,7 @@
 #include "tinyformat.h"
 #include <cstdio>
 
-#ifdef HARMONY_OS
+#ifdef __OS_HARMONY__
 #include <hilog/log.h>
 
 #define __LOG_DEBUG(msg) OH_LOG_DEBUG(LOG_APP, "%{public}s", msg);
@@ -103,5 +103,38 @@ static inline std::string __prettyMethodName(const std::string &prettyFunction) 
         }                                                                                                              \
         throw std::runtime_error(_log_str);                                                                            \
     } while (0)
+
+
+#define _FATAL_IF(condition, fmt, args...)                                                                            \
+    if (condition) {                                                                                                   \
+        _FATAL(fmt, ##args);                                                                                           \
+    }
+
+#define _ERROR_RETURN_IF(condition, retcode, fmt, args...)                                                             \
+    if (condition) {                                                                                                   \
+        _ERROR(fmt, ##args);                                                                                           \
+        return (retcode);                                                                                              \
+    }
+
+#define _ERROR_IF(condition, fmt, args...)                                                                             \
+    if (condition) {                                                                                                   \
+        _ERROR(fmt, ##args);                                                                                           \
+    }
+
+#define _WARN_RETURN_IF(condition, retcode, fmt, args...)                                                              \
+    if (condition) {                                                                                                   \
+        _WARN(fmt, ##args);                                                                                            \
+        return (retcode);                                                                                              \
+    }
+
+#define _WARN_IF(condition, fmt, args...)                                                                              \
+    if (condition) {                                                                                                   \
+        _WARN(fmt, ##args);                                                                                            \
+    }
+
+#define _INFO_IF(condition, fmt, args...)                                                                              \
+    if (condition) {                                                                                                   \
+        _INFO(fmt, ##args);                                                                                            \
+    }
 
 #pragma clang diagnostic pop
