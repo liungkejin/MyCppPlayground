@@ -16,7 +16,7 @@ void initialize() {
     DetectConfig detectConfig = {};
     InspireFaceDetector faceDetector(detectConfig);
 
-    std::string imageDir = std::string(ASSERTS_PATH) + "/images";
+    std::string imageDir = std::string(ASSERTS_PATH) + "/images/raw";
     {
         std::string aImgPath = imageDir + "/2000:01.jpg";
         cv::Mat src = cv::imread(aImgPath);
