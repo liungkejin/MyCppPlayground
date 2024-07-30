@@ -10,9 +10,12 @@ add_definitions(-D__OS_MAC__)
 find_package(OpenGL REQUIRED)
 find_package(OpenCV REQUIRED)
 
+EXECUTE_PROCESS( COMMAND uname -m COMMAND tr -d '\n' OUTPUT_VARIABLE ARCHITECTURE)
+message("arch: ${ARCHITECTURE}")
+
 set(InspireFacePath ${CMAKE_SOURCE_DIR}/libs/inspireface-macos/InspireFace)
 include_directories(${InspireFacePath}/include)
-set(LibInspireFace ${InspireFacePath}/lib/libInspireFace.dylib)
+set(LibInspireFace ${InspireFacePath}/lib/${ARCHITECTURE}/libInspireFace.dylib)
 
 include_directories(
         src
