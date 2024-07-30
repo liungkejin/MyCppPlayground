@@ -64,6 +64,11 @@ public:
 #endif
     }
 
+    TextureFilter &inputTexture(int id) {
+        uniform("inputImageTexture")->set(id);
+        return *this;
+    }
+
     TextureFilter &inputTexture(const Texture &texture) {
         uniform("inputImageTexture")->set((int)texture.id());
         return *this;
