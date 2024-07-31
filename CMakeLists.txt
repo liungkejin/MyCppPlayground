@@ -57,6 +57,8 @@ set(GLFW_INSTALL OFF)
 set(GLFW_BUILD_DOCS OFF)
 add_subdirectory(libs/glfw-3.4)
 
+add_subdirectory(libs/eventpp-0.1.3)
+
 set(FACE_SRC
         src/face/detect/InspireFaceDetector.cpp
         src/face/morph/FaceMorphTest.cpp
@@ -72,6 +74,7 @@ add_executable(MyCppPlayground
 
 target_link_libraries(MyCppPlayground
         glfw
+        eventpp
         OpenGL::GL
         ${OpenCV_LIBS}
         ${LibInspireFace}
