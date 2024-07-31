@@ -6,6 +6,7 @@
 
 
 #pragma once
+
 #include "GLUtil.h"
 #include <utils/MathUtils.h>
 
@@ -13,10 +14,34 @@ NAMESPACE_WUTA
 
 class GLRect {
 public:
+    static GLRect fitCenter(float tw, float th, float vw, float vh) {
+        GLRect rect(0, 0, tw, th);
+        float scale = std::min(vw / tw, vh / th);
+        float dx = (vw - tw * scale) / 2;
+        float dy = (vh - th * scale) / 2;
+        rect.scale(scale, scale);
+        rect.translate(dx, dy);
+        return rect;
+    }
+
+    static GLRect centerCrop(float tw, float th, float vw, float vh) {
+        GLRect rect(0, 0, tw, th);
+        float scale = std::max(vw / tw, vh / th);
+        float dx = (vw - tw * scale) / 2;
+        float dy = (vh - th * scale) / 2;
+        rect.scale(scale, scale);
+        rect.translate(dx, dy);
+        return rect;
+    }
+
+public:
     GLRect() {}
-    GLRect(float _x, float _y, float _w, float _h) : x(_x), y(_y), width(_w), height(_h){};
+
+    GLRect(float _x, float _y, float _w, float _h) : x(_x), y(_y), width(_w), height(_h) {};
+
     GLRect(const GLRect &o)
-        : x(o.x), y(o.y), width(o.width), height(o.height), rotation(o.rotation), flipH(o.flipH), flipV(o.flipV) {}
+            : x(o.x), y(o.y), width(o.width), height(o.height), rotation(o.rotation), flipH(o.flipH), flipV(o.flipV) {}
+
     GLRect &operator=(const GLRect &o) {
         x = o.x;
         y = o.y;
@@ -126,8 +151,8 @@ public:
 
 private:
     void toGLCoords(float outW, float outH, float *coords) const {
-        float cx = (x + width/2.0f);
-        float cy = (y + height/2.0f);
+        float cx = (x + width / 2.0f);
+        float cy = (y + height / 2.0f);
         float cosTheta = cos(rotation * M_PI / 180.0f);
         float sinTheta = sin(rotation * M_PI / 180.0f);
         // 按照default的顺序，依次是 坐下，右下，左上，右上
@@ -329,19 +354,19 @@ private:
     float flip(float i) { return 1.0f - i; }
 
     const float ROTATED_0[TEX_COORD_SIZE] = {
-        0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
+            0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
     };
 
     const float ROTATED_90[TEX_COORD_SIZE] = {
-        1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+            1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
     };
 
     const float ROTATED_180[TEX_COORD_SIZE] = {
-        1.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f,
+            1.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f,
     };
 
     const float ROTATED_270[TEX_COORD_SIZE] = {
-        0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f,
+            0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f,
     };
 };
 
@@ -354,7 +379,7 @@ public:
     const float *setByGLRect(float viewW, float viewH, const GLRect &rect) {
         int size = VERTEX_COORD_SIZE;
         if (rect.empty()) {
-            const float * d = GLCoord::get(size);
+            const float *d = GLCoord::get(size);
             m_size = size;
             return d;
         }
@@ -373,7 +398,7 @@ protected:
 
 private:
     const float DEFAULT_COORDS[VERTEX_COORD_SIZE] = {
-        -1.0f, -1.0f, 1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 1.0f,
+            -1.0f, -1.0f, 1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 1.0f,
     };
 };
 

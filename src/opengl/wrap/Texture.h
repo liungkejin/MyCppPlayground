@@ -11,6 +11,7 @@
 
 NAMESPACE_WUTA
 
+#define INVALID_TEXTURE Texture(INVALID_GL_ID, 0, 0)
 
 struct TexParams {
     GLint magFilter = GL_LINEAR;
@@ -38,9 +39,9 @@ public:
     inline bool valid() const { return m_id != INVALID_GL_ID && m_width > 0 && m_height > 0; }
 
 protected:
-    GLuint m_id = 0;
-    const GLuint m_width;
-    const GLuint m_height;
+    GLuint m_id;
+    GLuint m_width;
+    GLuint m_height;
 };
 
 class Texture2D : public Texture {
@@ -171,6 +172,17 @@ public:
         }
 
         return m_tex;
+    }
+
+    void releaseTexture() {
+        DELETE_TO_NULL(m_tex);
+    }
+
+    void release(bool releaseTex=true) {
+        if (releaseTex) {
+            DELETE_TO_NULL(m_tex);
+        }
+        m_img.free();
     }
 
 private:
