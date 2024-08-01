@@ -60,11 +60,11 @@ public:
             onProgramCreated();
         }
 
-        onViewport();
-
         if (output) {
             output->bind();
         }
+
+        onViewport();
 
         if (!m_program.attach()) {
             _ERROR("Couldn't attach filter(%s) program", m_name.c_str());

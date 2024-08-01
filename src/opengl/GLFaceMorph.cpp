@@ -20,64 +20,63 @@ void initialize() {
     {
         std::string aImgPath = imageDir + "/2000:01.jpg";
         cv::Mat src = cv::imread(aImgPath);
-        faceMorph.setSrcImg(src.data, src.cols, src.rows, GL_BGR);
 
         DetectResult &srcFP = faceDetector.detect(src.data, src.cols, src.rows,
                                                   HF_CAMERA_ROTATION_0, HF_STREAM_BGR, true);
         FaceData *f = srcFP.face(0);
+        std::vector<float> points;
         if (f) {
-            std::vector<float> points;
             for (int k = 0; k < f->numLandmarks(); ++k) {
                 points.push_back(f->landmarkX(k));
                 points.push_back(f->landmarkY(k));
             }
-            faceMorph.setSrcFacePoints(points, src.cols, src.rows);
         }
+
+        faceMorph.setSrcImg(src.data, src.cols, src.rows, GL_BGR, points);
     }
 
     std::string bImgPath = imageDir + "/2001:05.jpg";
     cv::Mat dst = cv::imread(bImgPath);
-    faceMorph.setDstImg(dst.data, dst.cols, dst.rows, GL_BGR);
     {
         DetectResult &srcFP = faceDetector.detect(dst.data, dst.cols, dst.rows,
                                                   HF_CAMERA_ROTATION_0, HF_STREAM_BGR, true);
         FaceData *f = srcFP.face(0);
+        std::vector<float> points;
         if (f) {
-            std::vector<float> points;
             for (int k = 0; k < f->numLandmarks(); ++k) {
                 points.push_back(f->landmarkX(k));
                 points.push_back(f->landmarkY(k));
             }
-            faceMorph.setDstFacePoints(points, dst.cols, dst.rows);
         }
+        faceMorph.setDstImg(dst.data, dst.cols, dst.rows, GL_BGR, points);
 
-//        if (true) {
-//            cv::Mat img = dst;
-//            cv::Mat cl;
-//            float scale = 1920.f / img.cols;
-//            cv::resize(img, cl, cv::Size(img.cols * scale, img.rows * scale));
-//            cv::Rect rect(f->x() * scale, f->y() * scale, f->width() * scale, f->height() * scale);
-//            cv::rectangle(cl, rect, cv::Scalar(255, 255, 0), 2);
-//
-//            for (int k = 0; k < f->numLandmarks(); ++k) {
-//                cv::Point2f p(f->landmarkX(k), f->landmarkY(k));
-//                printf("landmark: %.2f, %.2f\n", p.x, p.y);
-//
-//                cv::Point2f drawP = p * scale;
-//                cv::circle(cl, drawP, 0, cv::Scalar(0, 0, 255), 2);
-//                std::string index = std::to_string(k);
-//                cv::putText(cl, index, drawP, cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(0, 255, 0));
-//            }
-//            cv::imshow("11", cl);
-//            cv::waitKey(0);
-//        }
+        if (true) {
+            cv::Mat img = dst;
+            cv::Mat cl;
+            float scale = 1920.f / img.cols;
+            cv::resize(img, cl, cv::Size(img.cols * scale, img.rows * scale));
+            cv::Rect rect(f->x() * scale, f->y() * scale, f->width() * scale, f->height() * scale);
+            cv::rectangle(cl, rect, cv::Scalar(255, 255, 0), 2);
+
+            for (int k = 0; k < f->numLandmarks(); ++k) {
+                cv::Point2f p(f->landmarkX(k), f->landmarkY(k));
+                printf("landmark: %.2f, %.2f\n", p.x, p.y);
+
+                cv::Point2f drawP = p * scale;
+                cv::circle(cl, drawP, 0, cv::Scalar(0, 0, 255), 2);
+                std::string index = std::to_string(k);
+                cv::putText(cl, index, drawP, cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(0, 255, 0));
+            }
+            cv::imshow("11", cl);
+            cv::waitKey(0);
+        }
     }
 
-    faceMorph.generateTriangles();
+//    faceMorph.generateTriangles();
 }
 
-Framebuffer framebuffer;
 TextureFilter textureFilter;
+Texture2D texture2D = Texture2D(100, 75);
 
 void GLFaceMorph::test(int width, int height, float percent) {
     if (!init_flag) {
@@ -85,13 +84,14 @@ void GLFaceMorph::test(int width, int height, float percent) {
         init_flag = true;
     }
 
-    faceMorph.setViewport(width, height);
-    framebuffer.create(width, height);
-    faceMorph.render(percent, &framebuffer);
+    Framebuffer &fb = faceMorph.render(percent);
 
     textureFilter.setTextureCoord(0, false, true);
-    textureFilter.inputTexture(framebuffer.textureNonnull());
+    textureFilter.inputTexture(fb.textureNonnull());
     textureFilter.setViewport(width, height);
+
+    GLRect rect = GLRect::fitCenter(fb.texWidth(), fb.texHeight(), width, height);
+    textureFilter.setVertexCoord(rect, width, height);
     textureFilter.render();
 }
 

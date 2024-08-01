@@ -29,7 +29,7 @@ public:
         textureCoord().set(p, size);
     }
 
-    void setSrcImg(const Texture2D& tex) {
+    void setSrcImg(const Texture& tex) {
         uniform("srcImg")->set(tex.id());
     }
 
@@ -37,7 +37,7 @@ public:
         m_dst_tex_coord.set(p, size);
     }
 
-    void setDstImg(const Texture2D& tex) {
+    void setDstImg(const Texture& tex) {
         uniform("dstImg")->set(tex.id());
     }
 
