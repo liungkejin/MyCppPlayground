@@ -18,7 +18,7 @@ NAMESPACE_WUTA
 
 class MorphImage {
 public:
-    void setImg(const uint8_t *data, int width, int height, GLenum format) {
+    void setData(const uint8_t *data, int width, int height, GLenum format) {
         m_width = width;
         m_height = height;
         m_img.set(data, width, height, format);
@@ -37,13 +37,9 @@ public:
      */
     void setKeyPoints(const std::vector<float> &points, int leftEye, int rightEye, int nose) {
         m_raw_points = points;
-        m_left_eye = leftEye;
-        m_right_eye = rightEye;
-        m_nose = nose;
-    }
-
-    const Texture& rawTexture() {
-        return m_texture.valid() ? m_texture : m_img.textureNonnull();
+        m_leye_index = leftEye;
+        m_reye_index = rightEye;
+        m_nose_index = nose;
     }
 
     inline int width() const {
@@ -62,44 +58,91 @@ public:
         return m_raw_points[index * 2 + 1];
     }
 
+    inline int pointsSize() {
+        return m_raw_points.size() / 2;
+    }
+
+    float eyeDistance() {
+        float lx = px(m_leye_index), ly = py(m_leye_index);
+        float rx = px(m_reye_index), ry = py(m_reye_index);
+        return sqrt((lx - rx) * (lx - rx) + (ly - ry) * (ly - ry));
+    }
+
+    float eyeCenterX() {
+        return (px(m_leye_index) + px(m_reye_index)) / 2.f;
+    }
+
+    float eyeCenterY() {
+        return (py(m_leye_index) + py(m_reye_index)) / 2.f;
+    }
+
+    // 计算眼睛和 x 轴的夹角，顺时针，注意判断鼻子的方位
+    float eyeAngle() {
+        float lx = px(m_leye_index), ly = py(m_leye_index);
+        float rx = px(m_reye_index), ry = py(m_reye_index);
+
+        float dx = rx - lx;
+        float dy = ry - ly;
+        float angle = atan2(dy, dx);
+        return angle;
+    }
+
     /**
      * 将图片和点都统一到 dw, dh 大小
      */
     Texture prepare(TextureFilter &texFilter, int dw, int dh) {
-        m_trans_points.clear();
-        Texture tex = rawTexture();
-        int sw = m_width, sh = m_height;
-        if (sw * dh != sh * dw) {
-            GLRect rect(0, 0, sw, sh);
-            float scale = std::min((float) dw / sw, (float) dh / sh);
-            rect.scale(scale, scale);
-            float ssw = sw * scale, ssh = sh * scale;
-            float dx = dw / 2.f - ssw / 2.f, dy = dh / 2.f - ssh / 2.f;
-            rect.translate(dx, dy);
-
-            for (int i = 0, size = m_raw_points.size(); i < size; i += 2) {
-                m_trans_points.push_back(m_raw_points[i] * scale + dx);
-                m_trans_points.push_back(m_raw_points[i + 1] * scale + dy);
-            }
-
-            m_fb.create(dw, dh);
-            Viewport viewport(dw, dh);
-            viewport.enableClearColor(0, 0, 0, 1);
-            texFilter.setViewport(viewport);
-            texFilter.inputTexture(tex);
-            texFilter.setVertexCoord(rect, dw, dh);
-            texFilter.render(&m_fb);
-
-            return m_fb.textureNonnull();
-        } else {
-            float scale = std::min((float) dw / sw, (float) dh / sh);
-            for (int i = 0, size = m_raw_points.size(); i < size; i += 2) {
-                m_trans_points.push_back(m_raw_points[i] * scale);
-                m_trans_points.push_back(m_raw_points[i + 1] * scale);
-            }
-
-            return tex;
+        if (m_width == dw && m_height == dh) {
+            return m_init_fb.valid()? m_init_fb.textureNonnull() : rawTexture();
         }
+
+        int sw = m_width, sh = m_height;
+        float scale = std::min((float) dw / sw, (float) dh / sh);
+        float ssw = sw * scale, ssh = sh * scale;
+        float dx = dw / 2.f - ssw / 2.f, dy = dh / 2.f - ssh / 2.f;
+
+        transformPoints(scale, ssw, dx, dy);
+
+        GLRect rect(0, 0, sw, sh);
+        rect.scale(scale, scale);
+        rect.translate(dx, dy);
+
+        m_init_fb.create(dw, dh);
+        Viewport viewport(dw, dh);
+        viewport.enableClearColor(0, 0, 0, 0);
+        texFilter.setViewport(viewport);
+        texFilter.inputTexture(rawTexture());
+        texFilter.setVertexCoord(rect, dw, dh);
+        texFilter.render(&m_init_fb);
+
+        m_width = dw;
+        m_height = dh;
+        return m_init_fb.textureNonnull();
+    }
+
+    /**
+     * 得到一张渲染到指定位置的纹理，同时输出最终的点
+     */
+    Texture transform(TextureFilter &texFilter,
+                      float scale, float rotate, float dx, float dy, std::vector<float>& finalPoints) {
+        finalPoints.clear();
+        for (int i = 0, size = pointsSize(); i < size; i += 1) {
+            finalPoints.push_back(px(i) * scale + dx);
+            finalPoints.push_back(py(i) * scale + dx);
+        }
+        GLRect rect(0, 0, m_width, m_height);
+        rect.scale(scale, scale);
+//        rect.rotate(rotate);
+        rect.translate(dx, dy);
+
+        m_trans_fb.create(m_width, m_height);
+        Viewport viewport(m_width, m_height);
+        viewport.enableClearColor(0, 0, 0, 0);
+        texFilter.setViewport(viewport);
+        texFilter.setVertexCoord(rect, m_width, m_height);
+        texFilter.inputTexture(m_init_fb.textureNonnull());
+        texFilter.render(&m_trans_fb);
+
+        return m_init_fb.textureNonnull();
     }
 
     void transformTo(MorphImage& dst, float percent) {
@@ -113,7 +156,13 @@ public:
         float rotate = sumRotate * percent;
         float tranX = sumTranX * percent;
         float tranY = sumTranY * percent;
+        GLRect rect(0, 0, m_width, m_height);
+        rect.scale(scale, scale);
+        rect.rotate(rotate);
+        rect.translate(tranX, tranY);
+
         transformPoints(scale, rotate, tranX, tranY);
+
 
         float dstScale = 1.0f / sumScale + (1 - 1.0f / sumScale) * percent;
         float dstRotate = -sumRotate * (1 - percent);
@@ -123,48 +172,17 @@ public:
     }
 
 private:
+    const Texture& rawTexture() {
+        return m_texture.valid() ? m_texture : m_img.textureNonnull();
+    }
+
     void transformPoints(float scale, float rotate, float dx, float dy) {
-        for (int i = 0, size = m_trans_points.size(); i < size; i += 2) {
-            m_trans_points[i] = m_trans_points[i] * scale + dx;
-            m_trans_points[i+1] = m_trans_points[i+1] * scale + dy;
+        for (int i = 0, size = m_raw_points.size(); i < size; i += 2) {
+            m_raw_points[i] = m_raw_points[i] * scale + dx;
+            m_raw_points[i + 1] = m_raw_points[i + 1] * scale + dy;
         }
     }
 
-    float eyeDistance() {
-        float lx = m_trans_points[m_left_eye*2];
-        float ly = m_trans_points[m_left_eye*2+1];
-        float rx = m_trans_points[m_right_eye*2];
-        float ry = m_trans_points[m_right_eye*2+1];
-        return sqrt((lx - rx) * (lx - rx) + (ly - ry) * (ly - ry));
-    }
-
-    float eyeCenterX() {
-        float lx = m_trans_points[m_left_eye*2];
-        float rx = m_trans_points[m_right_eye*2];
-        return (lx + rx) / 2.f;
-    }
-
-    float eyeCenterY() {
-        float ly = m_trans_points[m_left_eye*2+1];
-        float ry = m_trans_points[m_right_eye*2+1];
-        return (ly + ry) / 2.f;
-    }
-
-    // 计算眼睛和 x 轴的夹角，顺时针，注意判断鼻子的方位
-    float eyeAngle() {
-        float lx = m_trans_points[m_left_eye*2];
-        float ly = m_trans_points[m_left_eye*2+1];
-        float rx = m_trans_points[m_right_eye*2];
-        float ry = m_trans_points[m_right_eye*2+1];
-
-        float nx = m_trans_points[m_nose*2];
-        float ny = m_trans_points[m_nose*2+1];
-
-        float dx = rx - lx;
-        float dy = ry - ly;
-        float angle = atan2(dy, dx);
-        return angle;
-    }
 
 private:
     int m_width = 0;
@@ -172,12 +190,13 @@ private:
     ImageTexture m_img;
     Texture m_texture = INVALID_TEXTURE;
     std::vector<float> m_raw_points;
-    std::vector<float> m_trans_points;
-    int m_left_eye = 0;
-    int m_right_eye = 0;
-    int m_nose = 0;
+    int m_leye_index = 0;
+    int m_reye_index = 0;
+    int m_nose_index = 0;
 
-    Framebuffer m_fb;
+    Framebuffer m_init_fb;
+
+    Framebuffer m_trans_fb;
 };
 
 class GLFaceMorph {
@@ -185,48 +204,43 @@ public:
     static void test(int width, int height, float percent);
 
 public:
-    void setSrcImg(const uint8_t *data, int width, int height, GLenum format, const std::vector<float> &points) {
-        m_src_img.set(data, width, height, format);
-        m_src_texture = INVALID_TEXTURE;
-        m_src_raw_points = points;
+    void setSrcImg(const uint8_t *data, int width, int height, GLenum format) {
+        m_src_img.setData(data, width, height, format);
     }
 
-    void setSrcTexture(int id, int width, int height, const std::vector<float> &points) {
-        m_src_img.release();
-        m_src_texture = Texture(id, width, height);
-        m_src_raw_points = points;
+    void setSrcTexture(int id, int width, int height) {
+        m_src_img.setTexture(id, width, height);
     }
+
+    void setSrcKeyPoints(const std::vector<float> &points, int leftEye, int rightEye, int nose) {
+        m_src_img.setKeyPoints(points, leftEye, rightEye, nose);
+    }
+
+    void setDstImg(const uint8_t *data, int width, int height, GLenum format) {
+        m_dst_img.setData(data, width, height, format);
+    }
+
+    void setDstTexture(int id, int width, int height) {
+        m_dst_img.setTexture(id, width, height);
+    }
+
+    void setDstKeyPoints(const std::vector<float> &points, int leftEye, int rightEye, int nose) {
+        m_dst_img.setKeyPoints(points, leftEye, rightEye, nose);
+    }
+
 
     /**
-     * 3 个关键点 左右眼球中心点，鼻子中心点
+     * 最重要的是计算融合之后的 三角形
+     * @param percent
+     * @return
      */
-    void setSrcKeyPointsIndex(int leftEye, int rightEye, int nose) {
-
-    }
-
-    void setDstImg(const uint8_t *data, int width, int height, GLenum format, const std::vector<float> &points) {
-        m_dst_img.set(data, width, height, format);
-        m_dst_texture = INVALID_TEXTURE;
-        m_dst_raw_points = points;
-    }
-
-    void setDstTexture(int id, int width, int height, const std::vector<float> &points) {
-        m_dst_img.release();
-        m_dst_texture = Texture(id, width, height);
-        m_dst_raw_points = points;
-    }
-
     Framebuffer &render(float percent) {
         m_morph_filter.setAlpha(percent);
-        const Texture &srcTex = srcTexture();
-        const Texture &dstTex = dstTexture();
 
-        int sw = srcTex.width(), sh = srcTex.height();
-        int dw = dstTex.width(), dh = dstTex.height();
-        transformSrc(srcTex, sw, sh, dw, dh);
-        transformDst(dstTex, sw, sh, dw, dh);
+        const Texture &dstTex = m_dst_img.prepare(m_texture_filter, m_dst_img.width(), m_dst_img.height());
+        const Texture &srcTex = m_src_img.prepare(m_texture_filter, m_dst_img.width(), m_dst_img.height());
 
-        if (m_src_raw_points.size() < 2 || m_src_raw_points.size() != m_dst_raw_points.size()) {
+        if (m_src_img.pointsSize() < 2 || m_src_img.pointsSize() != m_dst_img.pointsSize()) {
             // 简单混合
             m_morph_filter.setVertexCoord(nullptr, 0);
             m_morph_filter.setSrcTexCoord(nullptr, 0);
@@ -260,54 +274,6 @@ public:
     }
 
 private:
-    const Texture &srcTexture() {
-        return m_src_texture.valid() ? m_src_texture : m_src_img.textureNonnull();
-    }
-
-    const Texture &dstTexture() {
-        return m_dst_texture.valid() ? m_dst_texture : m_dst_img.textureNonnull();
-    }
-
-    void transformSrc(const Texture &srcTex, int sw, int sh, int dw, int dh) {
-        m_src_trans_points.clear();
-        if (sw * dh != sh * dw) {
-            // 先将 src 渲染到和 dst 一样尺寸的 framebuffer 上
-            // fit center 渲染
-            m_src_rect.setRect(0, 0, sw, sh);
-            float scale = std::min((float) dw / sw, (float) dh / sh);
-            m_src_rect.scale(scale, scale);
-            float ssw = sw * scale, ssh = sh * scale;
-            float dx = dw / 2.f - ssw / 2.f, dy = dh / 2.f - ssh / 2.f;
-            m_src_rect.translate(dx, dy);
-
-            for (int i = 0, size = m_src_raw_points.size(); i < size; i += 2) {
-                m_src_trans_points.push_back(m_src_raw_points[i] * scale + dx);
-                m_src_trans_points.push_back(m_src_raw_points[i + 1] * scale + dy);
-            }
-
-            m_src_fb.create(dw, dh);
-            Viewport viewport(dw, dh);
-            viewport.enableClearColor(0, 0, 0, 1);
-            m_texture_filter.setViewport(viewport);
-            m_texture_filter.inputTexture(srcTex);
-            m_texture_filter.setVertexCoord(m_src_rect, dw, dh);
-            m_texture_filter.render(&m_src_fb);
-
-            m_morph_filter.setSrcImg(m_src_fb.textureNonnull());
-        } else {
-            m_morph_filter.setSrcImg(srcTex);
-        }
-    }
-
-    void transformDst(const Texture &dstTex, int sw, int sh, int dw, int dh) {
-        m_dst_trans_points.clear();
-        for (int i = 0, size = m_dst_raw_points.size(); i < size; i+=2) {
-            m_dst_trans_points.push_back(m_dst_raw_points[i]);
-            m_dst_trans_points.push_back(m_dst_raw_points[i + 1]);
-        }
-        m_morph_filter.setDstImg(dstTex);
-    }
-
     void generateTriangles(float width, float height, float percent) {
         {
             for (int i = 0, size = m_src_trans_points.size(); i < size; i += 2) {
@@ -362,20 +328,9 @@ private:
     }
 
 private:
-    ImageTexture m_src_img;
-    Texture m_src_texture = INVALID_TEXTURE;
-    std::vector<float> m_src_raw_points;
-    std::vector<float> m_src_trans_points;
-    Framebuffer m_src_fb;
-    GLRect m_src_rect;
+    MorphImage m_src_img;
+    MorphImage m_dst_img;
 
-    Array m_src_triangle_points;
-
-    ImageTexture m_dst_img;
-    Texture m_dst_texture = INVALID_TEXTURE;
-    std::vector<float> m_dst_raw_points;
-    std::vector<float> m_dst_trans_points;
-    Framebuffer m_dst_fb;
 
     Array m_dst_triangle_points;
 
