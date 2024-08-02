@@ -145,6 +145,10 @@ public:
         m_tex_need_update = true;
     }
 
+    void *data() {
+        return m_img.data<uint8_t>();
+    }
+
     Texture2D& textureNonnull() {
         Texture2D * tex = texture();
         _FATAL_IF(!tex, "texture is nullptr!!")

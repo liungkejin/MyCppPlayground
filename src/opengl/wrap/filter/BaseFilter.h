@@ -23,33 +23,55 @@ public:
 
     const Viewport &viewport() const { return m_viewport; }
 
-    void setViewport(const Viewport &viewport) { m_viewport.set(viewport); }
+    BaseFilter& setViewport(const Viewport &viewport) {
+        m_viewport.set(viewport);
+        return *this;
+    }
 
-    void setViewport(int width, int height, bool scissor = false) { m_viewport.set(width, height, scissor); }
+    BaseFilter& setViewport(int width, int height, bool scissor = false) {
+        m_viewport.set(width, height, scissor);
+        return *this;
+    }
 
-    void setViewport(int x, int y, int width, int height, bool scissor = false) {
+    BaseFilter& setViewport(int x, int y, int width, int height, bool scissor = false) {
         m_viewport.set(x, y, width, height, scissor);
+        return *this;
     }
 
-    virtual void setVertexCoord(const GLRect &rect, float viewW, float viewH) {
+    virtual BaseFilter& setVertexCoord(const GLRect &rect, float viewW, float viewH) {
         m_vertex_coords.setByGLRect(viewW, viewH, rect);
+        return *this;
     }
 
-    virtual void setVertexCoord(const float *ps, int size) {
+    BaseFilter& setFullVertexCoord() {
+        setVertexCoord(nullptr, 0);
+        return *this;
+    }
+
+    virtual BaseFilter& setVertexCoord(const float *ps, int size) {
         m_vertex_coords.set(ps, size);
+        return *this;
     }
 
-    virtual void setTextureCoord(const GLRect &rect, float texW, float texH) {
+    BaseFilter& setFullTextureCoord() {
+        setTextureCoord(nullptr, 0);
+        return *this;
+    }
+
+    virtual BaseFilter& setTextureCoord(const GLRect &rect, float texW, float texH) {
         m_texture_coords.setByGLRect(texW, texH, rect);
+        return *this;
     }
 
     // rotation 只支持 0, 90, 180, 270
-    virtual void setTextureCoord(int rotation, bool flipH, bool flipV) {
+    virtual BaseFilter& setTextureCoord(int rotation, bool flipH, bool flipV) {
         m_texture_coords.setFullCoord(rotation, flipH, flipV);
+        return *this;
     }
 
-    virtual void setTextureCoord(const float *ps, int size) {
+    virtual BaseFilter& setTextureCoord(const float *ps, int size) {
         m_texture_coords.set(ps, size);
+        return *this;
     }
 
     void render(Framebuffer *output = nullptr) {

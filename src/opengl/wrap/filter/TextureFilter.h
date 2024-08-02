@@ -79,6 +79,11 @@ public:
         return *this;
     }
 
+    TextureFilter &alpha(float a) {
+        uniform("alpha")->set(a);
+        return *this;
+    }
+
     void onRender(Framebuffer *output) override {
         if (m_blend) {
             glEnable(GL_BLEND);

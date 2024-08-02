@@ -32,7 +32,9 @@ void initialize() {
             }
         }
 
-        faceMorph.setSrcImg(src.data, src.cols, src.rows, GL_BGR, points);
+        faceMorph.setSrcImg(src.data, src.cols, src.rows, GL_BGR);
+        Landmark landmark(src.cols, src.rows, points);
+        faceMorph.setSrcKeyPoints(landmark, 55, 105, 22);
     }
 
     std::string bImgPath = imageDir + "/2001:05.jpg";
@@ -48,9 +50,11 @@ void initialize() {
                 points.push_back(f->landmarkY(k));
             }
         }
-        faceMorph.setDstImg(dst.data, dst.cols, dst.rows, GL_BGR, points);
+        faceMorph.setDstImg(dst.data, dst.cols, dst.rows, GL_BGR);
+        Landmark landmark(dst.cols, dst.rows, points);
+        faceMorph.setDstKeyPoints(landmark, 55, 105, 22);
 
-        if (true) {
+        if (false) {
             cv::Mat img = dst;
             cv::Mat cl;
             float scale = 1920.f / img.cols;
@@ -58,17 +62,25 @@ void initialize() {
             cv::Rect rect(f->x() * scale, f->y() * scale, f->width() * scale, f->height() * scale);
             cv::rectangle(cl, rect, cv::Scalar(255, 255, 0), 2);
 
+            // 55 105 22
             for (int k = 0; k < f->numLandmarks(); ++k) {
+                cv::Mat ddd = cl.clone();
+
+                if (k != 55 && k != 105) {
+                    continue;
+                }
+
                 cv::Point2f p(f->landmarkX(k), f->landmarkY(k));
-                printf("landmark: %.2f, %.2f\n", p.x, p.y);
+                printf("landmark（%d): %.2f, %.2f\n", k,  p.x, p.y);
 
                 cv::Point2f drawP = p * scale;
-                cv::circle(cl, drawP, 0, cv::Scalar(0, 0, 255), 2);
+                cv::circle(ddd, drawP, 0, cv::Scalar(0, 0, 255), 2);
                 std::string index = std::to_string(k);
-                cv::putText(cl, index, drawP, cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(0, 255, 0));
+                cv::putText(ddd, index, drawP, cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0));
+
+                cv::imshow("11", ddd);
+                cv::waitKey(0);
             }
-            cv::imshow("11", cl);
-            cv::waitKey(0);
         }
     }
 

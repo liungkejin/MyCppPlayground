@@ -41,8 +41,8 @@ void testEventThread() {
 int main(int argc, char** argv)
 {
 //    FaceMorphTest::test();
-    testEventThread();
+//    testEventThread();
 
-//    GLRenderer::run();
+    GLRenderer::run();
     return 0;
 }

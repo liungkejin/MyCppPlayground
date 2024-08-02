@@ -26,28 +26,34 @@ public:
     Viewport(int x, int y, int width, int height, bool scissor = false)
         : m_x(x), m_y(y), m_width(width), m_height(height), m_scissor(scissor) {}
 
-    void set(int width, int height, bool scissor = false) { set(0, 0, width, height, scissor); }
+    Viewport& set(int width, int height, bool scissor = false) {
+        set(0, 0, width, height, scissor);
+        return *this;
+    }
 
-    void set(int x, int y, int width, int height, bool scissor = false) {
+    Viewport& set(int x, int y, int width, int height, bool scissor = false) {
         m_x = x;
         m_y = y;
         m_width = width;
         m_height = height;
         m_scissor = scissor;
+        return *this;
     }
-    
-    void enableClearColor(float red, float green, float blue, float alpha) {
+
+    Viewport& enableClearColor(float red, float green, float blue, float alpha) {
         m_clear_color[0] = red;
         m_clear_color[1] = green;
         m_clear_color[2] = blue;
         m_clear_color[3] = alpha;
+        return *this;
     }
-    
-    void disableClearColor() {
+
+    Viewport& disableClearColor() {
         m_clear_color[0] = -1000;
+        return *this;
     }
     
-    void set(const Viewport& v) {
+    Viewport& set(const Viewport& v) {
         m_x = v.m_x;
         m_y = v.m_y;
         m_width = v.m_width;
@@ -57,6 +63,7 @@ public:
         m_clear_color[1] = v.m_clear_color[1];
         m_clear_color[2] = v.m_clear_color[2];
         m_clear_color[3] = v.m_clear_color[3];
+        return *this;
     }
 
     void apply() {

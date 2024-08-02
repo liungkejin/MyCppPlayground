@@ -20,9 +20,10 @@ public:
     }
 
 public:
-    void setVertexCoord(const float *p, int size) override {
+    BaseFilter& setVertexCoord(const float *p, int size) override {
         BaseFilter::setVertexCoord(p, size);
         m_triangle_points = size / 2;
+        return *this;
     }
 
     void setSrcTexCoord(const float *p, int size) {

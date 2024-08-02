@@ -37,6 +37,8 @@ public:
 public:
     GLRect() {}
 
+    GLRect(float _w, float _h) : x(0), y(0), width(_w), height(_h) {};
+
     GLRect(float _x, float _y, float _w, float _h) : x(_x), y(_y), width(_w), height(_h) {};
 
     GLRect(const GLRect &o)
@@ -74,13 +76,13 @@ public:
     }
 
     GLRect &setRotation(float angle) {
-        rotation = angle;
-        rotation = fmod(rotation, 360.0f);
-        return *this;
+        return setRotation((x + width)/2.0f, (y + height)/2.0f, angle);
     }
 
-    GLRect &rotate(float angle) {
-        rotation += angle;
+    GLRect &setRotation(float cx, float cy, float angle) {
+        rcx = cx;
+        rcy = cy;
+        rotation = angle;
         rotation = fmod(rotation, 360.0f);
         return *this;
     }
@@ -101,9 +103,9 @@ public:
         return *this;
     }
 
-    GLRect &translate(float x, float y) {
-        this->x += x;
-        this->y += y;
+    GLRect &translate(float _x, float _y) {
+        this->x += _x;
+        this->y += _y;
         return *this;
     }
 
@@ -151,19 +153,20 @@ public:
 
 private:
     void toGLCoords(float outW, float outH, float *coords) const {
-        float cx = (x + width / 2.0f);
-        float cy = (y + height / 2.0f);
-        float cosTheta = cos(rotation * M_PI / 180.0f);
-        float sinTheta = sin(rotation * M_PI / 180.0f);
         // 按照default的顺序，依次是 坐下，右下，左上，右上
         float x1 = x, y1 = y + height;
         float x2 = x + width, y2 = y + height;
         float x3 = x, y3 = y;
         float x4 = x2, y4 = y;
-        MathUtils::rotatePoint(x1, y1, cx, cy, sinTheta, cosTheta);
-        MathUtils::rotatePoint(x2, y2, cx, cy, sinTheta, cosTheta);
-        MathUtils::rotatePoint(x3, y3, cx, cy, sinTheta, cosTheta);
-        MathUtils::rotatePoint(x4, y4, cx, cy, sinTheta, cosTheta);
+
+        if (rotation != 0) {
+            float cosTheta = (float) cos(rotation * M_PI / 180.0f);
+            float sinTheta = (float) sin(rotation * M_PI / 180.0f);
+            MathUtils::rotatePoint(x1, y1, rcx, rcy, sinTheta, cosTheta);
+            MathUtils::rotatePoint(x2, y2, rcx, rcy, sinTheta, cosTheta);
+            MathUtils::rotatePoint(x3, y3, rcx, rcy, sinTheta, cosTheta);
+            MathUtils::rotatePoint(x4, y4, rcx, rcy, sinTheta, cosTheta);
+        }
 
         // 必须先旋转再归一化，不然旋转后的尺寸就变了
         x1 /= outW, y1 /= outH;
@@ -191,8 +194,8 @@ private:
 
 private:
     float x = 0, y = 0, width = 0, height = 0;
-    float rotation = 0;                // 旋转角度
-    bool flipH = false, flipV = false; // 翻转
+    float rcx = 0, rcy = 0, rotation = 0; // 旋转角度
+    bool flipH = false, flipV = false;    // 翻转
 };
 
 class GLCoord {
