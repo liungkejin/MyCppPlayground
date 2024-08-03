@@ -20,14 +20,8 @@ public:
     }
 
 public:
-    BaseFilter& setVertexCoord(const float *p, int size) override {
-        BaseFilter::setVertexCoord(p, size);
-        m_triangle_points = size / 2;
-        return *this;
-    }
-
     void setSrcTexCoord(const float *p, int size) {
-        textureCoord().set(p, size);
+        textureCoord().set(p, size, GL_TRIANGLES, size/2);
     }
 
     void setSrcImg(const Texture& tex) {
@@ -35,7 +29,7 @@ public:
     }
 
     void setDstTexCoord(const float *p, int size) {
-        m_dst_tex_coord.set(p, size);
+        m_dst_tex_coord.set(p, size, GL_TRIANGLES, size/2);
     }
 
     void setDstImg(const Texture& tex) {
@@ -101,13 +95,6 @@ protected:
 #endif
     }
 
-    void onDrawArrays() override {
-        if (m_triangle_points > 0) {
-            glDrawArrays(GL_TRIANGLES, 0, m_triangle_points);
-        } else {
-            BaseFilter::onDrawArrays();
-        }
-    }
 private:
     int m_triangle_points = 0;
     TextureCoord m_dst_tex_coord;

@@ -44,17 +44,17 @@ public:
     }
 
     BaseFilter& setFullVertexCoord() {
-        setVertexCoord(nullptr, 0);
+        m_vertex_coords.setToDefault();
         return *this;
     }
 
-    virtual BaseFilter& setVertexCoord(const float *ps, int size) {
-        m_vertex_coords.set(ps, size);
+    virtual BaseFilter& setVertexCoord(const float *ps, int size, GLenum drawMode, int drawCount) {
+        m_vertex_coords.set(ps, size, drawMode, drawCount);
         return *this;
     }
 
     BaseFilter& setFullTextureCoord() {
-        setTextureCoord(nullptr, 0);
+        m_texture_coords.setToDefault();
         return *this;
     }
 
@@ -69,8 +69,9 @@ public:
         return *this;
     }
 
-    virtual BaseFilter& setTextureCoord(const float *ps, int size) {
-        m_texture_coords.set(ps, size);
+    virtual BaseFilter& setTextureCoord(const float *ps, int size, GLenum drawMode, int drawCount) {
+        // 对于纹理坐标，draw mode 无效
+        m_texture_coords.set(ps, size, drawMode, drawCount);
         return *this;
     }
 
@@ -127,21 +128,15 @@ protected:
 
     virtual void onRender(Framebuffer *output) { m_program.input(); }
 
-    virtual void onDrawArrays() { glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); }
+    virtual void onDrawArrays() {
+        glDrawArrays(m_vertex_coords.drawMode(), 0, m_vertex_coords.drawCount());
+    }
 
     virtual void onPostRender(Framebuffer *output) {
         glBindTexture(GL_TEXTURE_2D, 0);
         glBindVertexArray(0);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
-
-    //    void drawTriangleStrip(int count) { glDrawArrays(GL_TRIANGLE_STRIP, 0, count); }
-    //
-    //    void drawTriangleStrip(int offset, int count) { glDrawArrays(GL_TRIANGLE_STRIP, offset, count); }
-    //
-    //    void drawTriangle(int count) { glDrawArrays(GL_TRIANGLES, 0, count); }
-    //
-    //    void drawTriangle(int offset, int count) { glDrawArrays(GL_TRIANGLES, offset, count); }
 
 private:
     const std::string m_name;

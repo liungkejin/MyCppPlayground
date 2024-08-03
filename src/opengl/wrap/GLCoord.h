@@ -207,14 +207,22 @@ public:
         m_cap = 0;
     }
 
-    void set(const float *coord, int size) {
+    void setToDefault() {
+        set(nullptr, 0, GL_TRIANGLE_STRIP, 4);
+    }
+
+    void set(const float *coord, int size, GLenum drawMode, int drawCount) {
         std::lock_guard<std::mutex> lock(m_update_mutex);
         if (coord == nullptr) {
+            drawMode = GL_TRIANGLE_STRIP;
+            drawCount = 4;
             coord = getDefault(size);
         }
         float *dst = obtainCoords(size);
         memcpy(dst, coord, sizeof(float) * size);
         m_size = size;
+        m_draw_mode = drawMode;
+        m_draw_count = drawCount;
     }
 
     const float *get(int &size) {
@@ -224,6 +232,14 @@ public:
         }
         size = m_size;
         return m_coords;
+    }
+
+    GLenum drawMode() const {
+        return m_draw_mode;
+    }
+
+    int drawCount() const {
+        return m_draw_count;
     }
 
 protected:
@@ -244,6 +260,8 @@ protected:
     int m_cap = 0;
 
     int m_size = 0;
+    GLenum m_draw_mode = GL_TRIANGLE_STRIP;
+    int m_draw_count = 4;
 };
 
 class TextureCoord : public GLCoord {
@@ -280,6 +298,8 @@ public:
             coords[7] = flip(coords[7]);
         }
         m_size = size;
+        m_draw_mode = GL_TRIANGLE_STRIP;
+        m_draw_count = 4;
         return coords;
     }
 
@@ -330,11 +350,15 @@ public:
         }
 
         m_size = size;
+        m_draw_mode = GL_TRIANGLE_STRIP;
+        m_draw_count = 4;
         return coords;
     }
 
     const float *setByGLRect(float texW, float texH, const GLRect &rect) {
         int size = TEX_COORD_SIZE;
+        m_draw_mode = GL_TRIANGLE_STRIP;
+        m_draw_count = 4;
         if (rect.empty()) {
             const float *d = GLCoord::get(size);
             m_size = size;
@@ -381,6 +405,8 @@ public:
      */
     const float *setByGLRect(float viewW, float viewH, const GLRect &rect) {
         int size = VERTEX_COORD_SIZE;
+        m_draw_mode = GL_TRIANGLE_STRIP;
+        m_draw_count = 4;
         if (rect.empty()) {
             const float *d = GLCoord::get(size);
             m_size = size;

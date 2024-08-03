@@ -49,7 +49,8 @@ public:
         uniform sampler2D inputImageTexture;
         uniform mediump float alpha;
         void main() {
-            gl_FragColor = texture2D(inputImageTexture, textureCoordinate) * alpha;
+            vec4 c = texture(inputImageTexture, textureCoordinate);
+            gl_FragColor = vec4(c.rgb, c.a*alpha);
         })";
 #else
         return R"(
@@ -59,7 +60,8 @@ public:
         uniform mediump float alpha;
         out vec4 fragColor;
         void main() {
-            fragColor = texture(inputImageTexture, textureCoordinate) * alpha;
+            vec4 c = texture(inputImageTexture, textureCoordinate);
+            fragColor = vec4(c.rgb, c.a*alpha);
         })";
 #endif
     }

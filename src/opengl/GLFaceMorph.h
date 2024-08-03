@@ -128,9 +128,9 @@ public:
         return *this;
     }
 
-    std::vector<float> normalize(float w, float h) {
-        _INFO("size(%.2f, %.2f) , w: %.2f, H: %.2f", m_width, m_height, w, h);
-        std::vector<float> pv;
+    std::vector<double> normalize(float w, float h) {
+//        _INFO("size(%.2f, %.2f) , w: %.2f, H: %.2f", m_width, m_height, w, h);
+        std::vector<double> pv;
         for (int i = 0, size = (int) m_points.size(); i < size; i+=2) {
             pv.push_back(m_points[i]/w);
             pv.push_back(m_points[i+1]/h);
@@ -336,7 +336,7 @@ public:
 
         if (!m_src_img.canTransform(m_dst_img)) {
             // 简单混合
-            m_morph_filter.setVertexCoord(nullptr, 0);
+            m_morph_filter.setFullVertexCoord();
             m_morph_filter.setSrcTexCoord(nullptr, 0);
             m_morph_filter.setDstTexCoord(nullptr, 0);
 
@@ -372,34 +372,35 @@ public:
         Texture2D dstTex = m_dst_img.transform(m_texture_filter,
                                              curDstScale, curDstRotate, curDstTransX, curDstTransY, curDstLandmark);
 
-//        m_output_fb.create(dstWidth, dstHeight);
-//
+        m_output_fb.create(dstWidth, dstHeight);
+
 //        Viewport vp(dstWidth, dstHeight);
 //        vp.enableClearColor(0, 0, 0, 1);
 //        m_texture_filter.setFullVertexCoord().setFullTextureCoord().setViewport(vp);
 //        m_texture_filter.blend(false).inputTexture(srcTex).alpha(1).render(&m_output_fb);
 ////
 //        m_texture_filter.setViewport(vp.disableClearColor());
-//        m_texture_filter.blend(true).alpha(0.9f).inputTexture(dstTex).render(&m_output_fb);
+//        m_texture_filter.blend(true).alpha(percent).inputTexture(dstTex).render(&m_output_fb);
 
-        std::vector<float> srcNorm = curSrcLandmark.changeCoord(false).normalize(dstWidth, dstHeight);
-//        srcNorm.push_back(0);
-//        srcNorm.push_back(0);
-//        srcNorm.push_back(1);
-//        srcNorm.push_back(0);
-//        srcNorm.push_back(0);
-//        srcNorm.push_back(1);
-//        srcNorm.push_back(1);
-//        srcNorm.push_back(1);
-        std::vector<float> dstNorm = curDstLandmark.changeCoord(false).normalize(dstWidth, dstHeight);
-//        dstNorm.push_back(0);
-//        dstNorm.push_back(0);
-//        dstNorm.push_back(1);
-//        dstNorm.push_back(0);
-//        dstNorm.push_back(0);
-//        dstNorm.push_back(1);
-//        dstNorm.push_back(1);
-//        dstNorm.push_back(1);
+        std::vector<double> srcNorm = curSrcLandmark.normalize(dstWidth, dstHeight);
+        srcNorm.push_back(0);
+        srcNorm.push_back(0);
+        srcNorm.push_back(1);
+        srcNorm.push_back(0);
+        srcNorm.push_back(0);
+        srcNorm.push_back(1);
+        srcNorm.push_back(1);
+        srcNorm.push_back(1);
+
+        std::vector<double> dstNorm = curDstLandmark.normalize(dstWidth, dstHeight);
+        dstNorm.push_back(0);
+        dstNorm.push_back(0);
+        dstNorm.push_back(1);
+        dstNorm.push_back(0);
+        dstNorm.push_back(0);
+        dstNorm.push_back(1);
+        dstNorm.push_back(1);
+        dstNorm.push_back(1);
 
         std::vector<double> averagePoints;
         for (int i = 0, size = dstNorm.size(); i < size; ++i) {
@@ -409,16 +410,16 @@ public:
         // 生成三角形
         delaunator::Delaunator dela(averagePoints);
 
-        _INFO("triangle size: %d", dela.triangles.size());
+//        _INFO("triangle size: %d", dela.triangles.size());
         int trianglePCount = (int) dela.triangles.size() * 2;
         float *src = m_src_triangle_points.obtain<float>(trianglePCount);
         float *dst = m_dst_triangle_points.obtain<float>(trianglePCount);
         int i = 0;
         for (size_t &t: dela.triangles) {
             src[i] = srcNorm[t * 2];
-            src[i + 1] = srcNorm[t * 2 + 1];
+            src[i + 1] = 1 - srcNorm[t * 2 + 1];
             dst[i] = dstNorm[t * 2];
-            dst[i + 1] = dstNorm[t * 2 + 1];
+            dst[i + 1] = 1 - dstNorm[t * 2 + 1];
             i += 2;
         }
 
@@ -432,16 +433,17 @@ public:
 //        m_output_fb.create(dstWidth, dstHeight);
 //        Viewport vp(dstWidth, dstHeight);
 //        vp.enableClearColor(0, 0, 0, 1);
-//        m_texture_filter.setVertexCoord(weight, trianglePCount).setTextureCoord(src, trianglePCount).setViewport(vp);
+//        m_texture_filter.setVertexCoord(weight, trianglePCount, GL_TRIANGLES, trianglePCount/2)
+//                        .setTextureCoord(src, trianglePCount, GL_TRIANGLES, trianglePCount/2).setViewport(vp);
 //        m_texture_filter.blend(false).inputTexture(srcTex).alpha(1).render(&m_output_fb);
 
         m_morph_filter.setViewport(dstWidth, dstHeight);
-        m_morph_filter.setVertexCoord(weight, trianglePCount);
+        m_morph_filter.setVertexCoord(weight, trianglePCount, GL_TRIANGLES, trianglePCount/2);
         m_morph_filter.setSrcTexCoord(src, trianglePCount);
         m_morph_filter.setDstTexCoord(dst, trianglePCount);
         m_morph_filter.setSrcImg(srcTex);
         m_morph_filter.setDstImg(dstTex);
-        m_morph_filter.setAlpha(0);
+        m_morph_filter.setAlpha(percent);
 
 
         m_output_fb.create(dstWidth, dstHeight);
