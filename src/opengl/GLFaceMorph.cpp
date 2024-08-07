@@ -18,7 +18,7 @@ void initialize() {
 
     std::string imageDir = std::string(ASSERTS_PATH) + "/images/raw";
     {
-        std::string aImgPath = imageDir + "/2000:01.jpg";
+        std::string aImgPath = imageDir + "/2015:02.jpg";
         cv::Mat src = cv::imread(aImgPath);
 
         DetectResult &srcFP = faceDetector.detect(src.data, src.cols, src.rows,
@@ -37,7 +37,7 @@ void initialize() {
         faceMorph.setSrcKeyPoints(landmark, 55, 105, 22);
     }
 
-    std::string bImgPath = imageDir + "/2015:02.jpg";
+    std::string bImgPath = imageDir + "/WechatIMG6311.jpg";
     cv::Mat dst = cv::imread(bImgPath);
     {
         DetectResult &srcFP = faceDetector.detect(dst.data, dst.cols, dst.rows,

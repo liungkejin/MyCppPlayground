@@ -21,7 +21,7 @@ public:
 
     Uniform *uniform(const char *name) { return m_program.uniform(name); }
 
-    const Viewport &viewport() const { return m_viewport; }
+    Viewport &viewport() { return m_viewport; }
 
     BaseFilter& setViewport(const Viewport &viewport) {
         m_viewport.set(viewport);

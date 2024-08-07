@@ -6,17 +6,24 @@
 
 #include <Playground.h>
 #include "wrap/filter/FaceMorphFilter.h"
+#include "wrap/filter/TextureFilter.h"
 #include "utils/Delaunator.h"
-#include "opengl/wrap/filter/TextureFilter.h"
 #include "face/CVUtils.h"
 
 NAMESPACE_WUTA
+
+struct TransStatus {
+    float scale;
+    float rotate;
+    float trans_x;
+    float trans_y;
+};
 
 class Landmark {
 public:
     Landmark() {}
 
-    Landmark(float w, float h, const std::vector<float> &p, bool glCoord=false) : m_width(w), m_height(h) {
+    Landmark(float w, float h, const std::vector<float> &p, bool glCoord = false) : m_width(w), m_height(h) {
         m_gl_coord = glCoord;
         m_points = p;
     }
@@ -89,52 +96,105 @@ public:
         return atan2(dy, dx);
     }
 
-    Landmark& scale(float sa) {
+    Landmark &scale(float sa) {
         for (int i = 0, size = (int) m_points.size(); i < size; ++i) {
             m_points[i] *= sa;
         }
-        m_width *= sa;
-        m_height *= sa;
         return *this;
     }
 
-    Landmark& translate(float dx, float dy) {
-        for (int i = 0, size = (int) m_points.size(); i < size; i+=2) {
+    Landmark &translate(float dx, float dy) {
+        for (int i = 0, size = (int) m_points.size(); i < size; i += 2) {
             m_points[i] += dx;
-            m_points[i+1] += dy;
+            m_points[i + 1] += dy;
         }
         return *this;
     }
 
-    Landmark& rotate(float cx, float cy, float angle) {
-        for (int i = 0, size = (int) m_points.size(); i < size; i+=2) {
+    Landmark &rotate(float cx, float cy, float angle) {
+        for (int i = 0, size = (int) m_points.size(); i < size; i += 2) {
             float x = m_points[i];
-            float y = m_points[i+1];
+            float y = m_points[i + 1];
             MathUtils::rotatePoint(x, y, cx, cy, angle);
             m_points[i] = x;
-            m_points[i+1] = y;
+            m_points[i + 1] = y;
         }
         return *this;
     }
 
-    Landmark& changeCoord(bool glCoord) {
+    Landmark &changeCoord(bool glCoord) {
         if (m_gl_coord == glCoord) {
             return *this;
         }
         m_gl_coord = glCoord;
-        for (int i = 0, size = (int) m_points.size(); i < size; i+=2) {
-            m_points[i+1] = m_height - m_points[i+1];
+        for (int i = 0, size = (int) m_points.size(); i < size; i += 2) {
+            m_points[i + 1] = m_height - m_points[i + 1];
         }
         return *this;
     }
 
-    std::vector<double> normalize(float w, float h) {
-//        _INFO("size(%.2f, %.2f) , w: %.2f, H: %.2f", m_width, m_height, w, h);
-        std::vector<double> pv;
-        for (int i = 0, size = (int) m_points.size(); i < size; i+=2) {
-            pv.push_back(m_points[i]/w);
-            pv.push_back(m_points[i+1]/h);
+    std::vector<float> normalize() {
+        std::vector<float> pv;
+        for (int i = 0, size = (int) m_points.size(); i < size; i += 2) {
+            pv.push_back(m_points[i] / m_width);
+            pv.push_back(m_points[i + 1] / m_height);
         }
+        return pv;
+    }
+
+    std::vector<float> trianglePoints() {
+        std::vector<float> pv;
+        float minx = (float) INT32_MAX, miny = (float) INT32_MAX, maxx = INT32_MIN, maxy = INT32_MIN;
+        for (int i = 0, size = (int) m_points.size(); i < size; i += 2) {
+            float x = m_points[i] / m_width;
+            float y = m_points[i + 1] / m_height;
+            if (minx > x) {
+                minx = x;
+            }
+            if (maxx < x) {
+                maxx = x;
+            }
+            if (miny > y) {
+                miny = y;
+            }
+            if (maxy < y) {
+                maxy = y;
+            }
+
+            pv.push_back(x);
+            pv.push_back(y);
+        }
+        // 缩放矩形
+        float cx = (maxx + minx) / 2.0f;
+        float cy = (maxy + miny) / 2.0f;
+        float lw = (maxx - minx) * 2.0f;
+        float lh = (maxy - miny) * 2.0f;
+        float lx = cx - lw / 2.0f, ly = cy - lh / 2.0f;
+        float rx = cx + lw / 2.0f, ry = cy + lh / 2.0f;
+        pv.push_back(lx);
+        pv.push_back(ly);
+
+        pv.push_back(rx);
+        pv.push_back(ly);
+
+        pv.push_back(rx);
+        pv.push_back(ry);
+
+        pv.push_back(lx);
+        pv.push_back(ry);
+
+        // 四个角
+//        pv.push_back(MIN(0, lx));
+//        pv.push_back(MIN(0, ly));
+//
+//        pv.push_back(MAX(1, rx));
+//        pv.push_back(MAX(1, ry));
+//
+//        pv.push_back(MAX(1, rx));
+//        pv.push_back(MIN(0, ly));
+//
+//        pv.push_back(MIN(0, lx));
+//        pv.push_back(MAX(1, ry));
         return pv;
     }
 
@@ -165,7 +225,7 @@ public:
     /**
      * 3 个关键点 左右眼球中心点，鼻子中心点的索引
      */
-    void setKeyPoints(const Landmark& landmark, int leftEye, int rightEye, int nose) {
+    void setKeyPoints(const Landmark &landmark, int leftEye, int rightEye, int nose) {
         m_landmark = landmark;
         m_landmark.changeCoord(true);
         m_leye_index = leftEye;
@@ -189,7 +249,7 @@ public:
         return pointsSize() > 1 && pointsSize() == dst.pointsSize();
     }
 
-    inline const Landmark& landmark() {
+    inline const Landmark &landmark() {
         return m_landmark;
     }
 
@@ -236,43 +296,58 @@ public:
         m_scaled_fb.create(dw, dh);
         Viewport viewport(dw, dh);
         viewport.enableClearColor(0, 0, 0, 0);
-        texFilter.setViewport(viewport).setVertexCoord(rect, (float)dw, (float)dh).setFullTextureCoord();
+        texFilter.setViewport(viewport).setVertexCoord(rect, (float) dw, (float) dh).setFullTextureCoord();
         texFilter.inputTexture(rawTexture()).render(&m_scaled_fb);
 
         m_width = dw;
         m_height = dh;
-        m_landmark.setSize(dw, dh);
+        m_landmark.setSize((float) dw, (float) dh);
     }
 
     Texture inputTexture() {
         return m_scaled_fb.valid() ? m_scaled_fb.textureNonnull() : rawTexture();
     }
 
+    TransStatus getFinalTransStatus(MorphImage &dst) const {
+        float sumScale = dst.eyeDistance() / eyeDistance();
+        TransStatus status = {
+                .scale = sumScale,
+                .rotate = dst.eyeAngle() - eyeAngle(),
+                .trans_x = dst.eyeCenterX() - eyeCenterX() * sumScale,
+                .trans_y = dst.eyeCenterY() - eyeCenterY() * sumScale
+        };
+        return status;
+    }
+
     /**
      * 得到一张渲染到指定位置的纹理，同时输出最终的点
      */
-    Texture2D transform(TextureFilter &texFilter,
-                   float scale, float rotAngle, float dx, float dy, Landmark& outLandmark) {
+    Texture2D transform(TextureFilter &texFilter, const TransStatus &status, Landmark &outLandmark) {
         outLandmark = m_landmark;
-        outLandmark.scale(scale).translate(dx, dy);
+        outLandmark.scale(status.scale).translate(status.trans_x, status.trans_y);
         float cx = outLandmark.centerX(m_leye_index, m_reye_index);
         float cy = outLandmark.centerY(m_leye_index, m_reye_index);
-        outLandmark.rotate(cx, cy, rotAngle);
+        outLandmark.rotate(cx, cy, status.rotate);
 
         GLRect rect((float) m_width, (float) m_height);
-        rect.scale(scale, scale).translate(dx, dy).setRotation(cx, cy, rotAngle);
+        rect.scale(status.scale, status.scale)
+                .translate(status.trans_x, status.trans_y)
+                .setRotation(cx, cy, status.rotate);
 
         m_trans_fb.create(m_width, m_height);
-        Viewport viewport(m_width, m_height);
-        viewport.enableClearColor(0, 0, 0, 0);
-        texFilter.setViewport(viewport).setVertexCoord(rect, (float)m_width, (float)m_height).setFullTextureCoord();
+        texFilter.viewport().set(m_width, m_height)
+                .enableClearColor(0, 0, 0, 0);
+        texFilter.setVertexCoord(rect, (float) m_width, (float) m_height).setFullTextureCoord();
         texFilter.blend(false).inputTexture(inputTexture()).render(&m_trans_fb);
 
         return m_trans_fb.textureNonnull();
     }
 
-private:
+    float *obtainTexPoints(int size) {
+        return m_tex_points.obtain<float>(size);
+    }
 
+private:
     const Texture &rawTexture() {
         return m_texture.valid() ? m_texture : m_img.textureNonnull();
     }
@@ -289,8 +364,9 @@ private:
     int m_nose_index = 0;
 
     Framebuffer m_scaled_fb;
-
     Framebuffer m_trans_fb;
+
+    Array m_tex_points;
 };
 
 class GLFaceMorph {
@@ -329,7 +405,6 @@ public:
      * @return
      */
     Framebuffer &render(float percent) {
-
         int dstWidth = (int) m_dst_img.width();
         int dstHeight = (int) m_dst_img.height();
         m_src_img.scaleTo(m_texture_filter, dstWidth, dstHeight);
@@ -346,166 +421,180 @@ public:
             return m_output_fb;
         }
 
+        TransStatus finalTrans = m_src_img.getFinalTransStatus(m_dst_img);
+        TransStatus srcStatus = {
+                .scale = 1 + (finalTrans.scale - 1) * percent,
+                .rotate = finalTrans.rotate * percent,
+                .trans_x = finalTrans.trans_x * percent,
+                .trans_y = finalTrans.trans_y * percent
+        };
 
-        float sumScale = m_dst_img.eyeDistance() / m_src_img.eyeDistance();
-        float sumRotate = m_dst_img.eyeAngle() - m_src_img.eyeAngle();
-        float sumTranX = m_dst_img.eyeCenterX() - m_src_img.eyeCenterX() * sumScale;
-        float sumTranY = m_dst_img.eyeCenterY() - m_src_img.eyeCenterY() * sumScale;
-
-//        _INFO("sumScale: %.2f, sumRotate: %.2f, sumTranX: %.2f, sumTranY: %.2f", sumScale, sumRotate, sumTranX, sumTranY);
-        float curSrcScale = 1 + (sumScale - 1) * percent;
-        float curSrcRotate = sumRotate * percent;
-        float curSrcTransX = sumTranX * percent;
-        float curSrcTransY = sumTranY * percent;
 //        _INFO("cur src scale: %.2f, cur src trans(%.2f, %.2f)", curSrcScale, curSrcTransX, curSrcTransY);
         Landmark curSrcLandmark;
-        Texture2D srcTex = m_src_img.transform(m_texture_filter,
-                                            curSrcScale, curSrcRotate,
-                                            curSrcTransX, curSrcTransY, curSrcLandmark);
-
-        float curDstScale = curSrcLandmark.distance(m_src_img.leftEyeIndex(), m_src_img.rightEyeIndex()) / m_dst_img.eyeDistance();
-        float curDstRotate = sumRotate * (1 - percent);
-        float curDstTransX = curSrcLandmark.centerX(m_src_img.leftEyeIndex(), m_src_img.rightEyeIndex()) - m_dst_img.eyeCenterX() * curDstScale;
-        float curDstTransY = curSrcLandmark.centerY(m_src_img.leftEyeIndex(), m_src_img.rightEyeIndex()) - m_dst_img.eyeCenterY() * curDstScale;
-
-        Landmark curDstLandmark;
-        Texture2D dstTex = m_dst_img.transform(m_texture_filter,
-                                             curDstScale, curDstRotate, curDstTransX, curDstTransY, curDstLandmark);
-
+        Texture2D srcTex = m_src_img.transform(m_texture_filter, srcStatus, curSrcLandmark);
         m_output_fb.create(dstWidth, dstHeight);
+        if (percent < 0.00001f) {
+            m_texture_filter.viewport().set(dstWidth, dstHeight).enableClearColor(0, 0, 0, 1);
+            m_texture_filter.setFullTextureCoord().setFullVertexCoord();
+            m_texture_filter.inputTexture(srcTex).alpha(1);
+            m_texture_filter.render(&m_output_fb);
+            return m_output_fb;
+        }
 
-//        Viewport vp(dstWidth, dstHeight);
-//        vp.enableClearColor(0, 0, 0, 1);
-//        m_texture_filter.setFullVertexCoord().setFullTextureCoord().setViewport(vp);
-//        m_texture_filter.blend(false).inputTexture(srcTex).alpha(1).render(&m_output_fb);
-////
-//        m_texture_filter.setViewport(vp.disableClearColor());
-//        m_texture_filter.blend(true).alpha(percent).inputTexture(dstTex).render(&m_output_fb);
+        int leyeIndex = m_src_img.leftEyeIndex(), reyeIndex = m_src_img.rightEyeIndex();
+        float curDstScale = curSrcLandmark.distance(leyeIndex, reyeIndex) / m_dst_img.eyeDistance();
+        TransStatus dstStatus = {
+                .scale = curDstScale,
+                .rotate = finalTrans.rotate * (1 - percent),
+                .trans_x = curSrcLandmark.centerX(leyeIndex, reyeIndex) - m_dst_img.eyeCenterX() * curDstScale,
+                .trans_y = curSrcLandmark.centerY(leyeIndex, reyeIndex) - m_dst_img.eyeCenterY() * curDstScale
+        };
+        Landmark curDstLandmark;
+        Texture2D dstTex = m_dst_img.transform(m_texture_filter, dstStatus, curDstLandmark);
+        if (percent > 0.99999f) {
+            m_texture_filter.viewport().set(dstWidth, dstHeight).enableClearColor(0, 0, 0, 1);
+            m_texture_filter.setFullTextureCoord().setFullVertexCoord();
+            m_texture_filter.inputTexture(dstTex).alpha(1);
+            m_texture_filter.render(&m_output_fb);
+            return m_output_fb;
+        }
 
-        std::vector<double> srcNorm = curSrcLandmark.normalize(dstWidth, dstHeight);
-        srcNorm.push_back(0);
-        srcNorm.push_back(0);
-        srcNorm.push_back(1);
-        srcNorm.push_back(0);
-        srcNorm.push_back(0);
-        srcNorm.push_back(1);
-        srcNorm.push_back(1);
-        srcNorm.push_back(1);
 
-        std::vector<double> dstNorm = curDstLandmark.normalize(dstWidth, dstHeight);
-        dstNorm.push_back(0);
-        dstNorm.push_back(0);
-        dstNorm.push_back(1);
-        dstNorm.push_back(0);
-        dstNorm.push_back(0);
-        dstNorm.push_back(1);
-        dstNorm.push_back(1);
-        dstNorm.push_back(1);
+        // 计算三角形
+        std::vector<float> srcPoints = curSrcLandmark.trianglePoints();
+        std::vector<float> dstPoints = curDstLandmark.trianglePoints();
 
         std::vector<double> averagePoints;
-        for (int i = 0, size = dstNorm.size(); i < size; ++i) {
-            averagePoints.push_back((srcNorm[i] + dstNorm[i]) / 2.);
+        for (int i = 0, size = (int) srcPoints.size(); i < size; ++i) {
+            averagePoints.push_back((dstPoints[i] + srcPoints[i]) / 2.);
         }
-
-        // 生成三角形
         delaunator::Delaunator dela(averagePoints);
 
-//        _INFO("triangle size: %d", dela.triangles.size());
-        int trianglePCount = (int) dela.triangles.size() * 2;
-        float *src = m_src_triangle_points.obtain<float>(trianglePCount);
-        float *dst = m_dst_triangle_points.obtain<float>(trianglePCount);
-        int i = 0;
-        for (size_t &t: dela.triangles) {
-            src[i] = srcNorm[t * 2];
-            src[i + 1] = 1 - srcNorm[t * 2 + 1];
-            dst[i] = dstNorm[t * 2];
-            dst[i + 1] = 1 - dstNorm[t * 2 + 1];
-            i += 2;
+        // 处理三角形，主动填充边界
+        size_t trianglePointSize = dela.triangles.size();
+        int orgItemSize = (int) trianglePointSize * 2;
+        int itemSize = orgItemSize + 6 * 8;
+        float *srcTriPs = m_src_img.obtainTexPoints(itemSize);
+        float *dstTriPs = m_dst_img.obtainTexPoints(itemSize);
+
+        for (size_t i = 0; i < trianglePointSize; ++i) {
+            size_t ti = dela.triangles[i] * 2;
+            float sx = srcPoints[ti], sy = 1 - srcPoints[ti + 1];
+            float dx = dstPoints[ti], dy = 1 - dstPoints[ti + 1];
+
+            srcTriPs[i * 2] = sx;
+            srcTriPs[i * 2 + 1] = sy;
+            dstTriPs[i * 2] = dx;
+            dstTriPs[i * 2 + 1] = dy;
         }
+        fixTriangles(srcTriPs, orgItemSize, 0, 1);
+        fixTriangles(dstTriPs, orgItemSize, 0, 1);
 
-        float *weight = m_percent_triangle_points.obtain<float>(trianglePCount);
-        for (i = 0; i < trianglePCount; ++i) {
-            float a = src[i];
-            float b = dst[i];
-            weight[i] = ((1 - percent) * a + percent * b) * 2 - 1;
+        float *weight = m_vertex_points.obtain<float>(itemSize);
+        for (size_t i = 0; i < itemSize; ++i) {
+            weight[i] = ((1 - percent) * srcTriPs[i] + percent * dstTriPs[i]) * 2 - 1;
         }
+        fixTriangles(weight, orgItemSize, -1, 1);
 
-//        m_output_fb.create(dstWidth, dstHeight);
-//        Viewport vp(dstWidth, dstHeight);
-//        vp.enableClearColor(0, 0, 0, 1);
-//        m_texture_filter.setVertexCoord(weight, trianglePCount, GL_TRIANGLES, trianglePCount/2)
-//                        .setTextureCoord(src, trianglePCount, GL_TRIANGLES, trianglePCount/2).setViewport(vp);
-//        m_texture_filter.blend(false).inputTexture(srcTex).alpha(1).render(&m_output_fb);
-
-        m_morph_filter.setViewport(dstWidth, dstHeight);
-        m_morph_filter.setVertexCoord(weight, trianglePCount, GL_TRIANGLES, trianglePCount/2);
-        m_morph_filter.setSrcTexCoord(src, trianglePCount);
-        m_morph_filter.setDstTexCoord(dst, trianglePCount);
+        m_morph_filter.viewport().set(dstWidth, dstHeight).enableClearColor(0, 0, 0, 1);
+        m_morph_filter.setVertexCoord(weight, itemSize, GL_TRIANGLES, itemSize / 2);
+        m_morph_filter.setSrcTexCoord(srcTriPs, itemSize);
+        m_morph_filter.setDstTexCoord(dstTriPs, itemSize);
         m_morph_filter.setSrcImg(srcTex);
         m_morph_filter.setDstImg(dstTex);
         m_morph_filter.setAlpha(percent);
 
-
-        m_output_fb.create(dstWidth, dstHeight);
         m_morph_filter.render(&m_output_fb);
 
         return m_output_fb;
     }
 
-    void release() {
-        // TODO
+private:
+    static void fixTriangles(float *points, int size, int min, int max) {
+        float minx = (float) INT32_MAX, miny = (float) INT32_MAX, maxx = INT32_MIN, maxy = INT32_MIN;
+        for (int i = 0; i < size; i += 2) {
+            float x = points[i];
+            float y = points[i + 1];
+            if (minx > x) {
+                minx = x;
+            }
+            if (maxx < x) {
+                maxx = x;
+            }
+            if (miny > y) {
+                miny = y;
+            }
+            if (maxy < y) {
+                maxy = y;
+            }
+        }
+        float lx = MIN(min, minx);
+        float ly = MIN(min, miny);
+        float rx = MAX(max, maxx);
+        float ry = MAX(max, maxy);
+        // 加8个三角形
+        points[size++] = lx;
+        points[size++] = ly;
+        points[size++] = rx;
+        points[size++] = ly;
+        points[size++] = minx;
+        points[size++] = miny;
+
+        points[size++] = minx;
+        points[size++] = miny;
+        points[size++] = rx;
+        points[size++] = ly;
+        points[size++] = maxx;
+        points[size++] = miny;
+
+        points[size++] = maxx;
+        points[size++] = miny;
+        points[size++] = rx;
+        points[size++] = ly;
+        points[size++] = rx;
+        points[size++] = ry;
+
+        points[size++] = maxx;
+        points[size++] = miny;
+        points[size++] = rx;
+        points[size++] = ry;
+        points[size++] = maxx;
+        points[size++] = maxy;
+
+        points[size++] = maxx;
+        points[size++] = maxy;
+        points[size++] = rx;
+        points[size++] = ry;
+        points[size++] = lx;
+        points[size++] = ry;
+
+        points[size++] = maxx;
+        points[size++] = maxy;
+        points[size++] = lx;
+        points[size++] = ry;
+        points[size++] = minx;
+        points[size++] = maxy;
+
+        points[size++] = minx;
+        points[size++] = maxy;
+        points[size++] = lx;
+        points[size++] = ry;
+        points[size++] = lx;
+        points[size++] = ly;
+
+        points[size++] = minx;
+        points[size++] = maxy;
+        points[size++] = lx;
+        points[size++] = ly;
+        points[size++] = minx;
+        points[size++] = miny;
     }
 
 private:
-//    void generateTriangles(float width, float height, float percent) {
-//        {
-//            for (int i = 0, size = m_src_trans_points.size(); i < size; i += 2) {
-//                m_src_trans_points[i] = m_src_trans_points[i] / width;
-//                m_src_trans_points[i + 1] = m_src_trans_points[i + 1] / height;
-//            }
-//            m_src_trans_points.push_back(0);
-//            m_src_trans_points.push_back(0);
-//            m_src_trans_points.push_back(1);
-//            m_src_trans_points.push_back(0);
-//            m_src_trans_points.push_back(0);
-//            m_src_trans_points.push_back(1);
-//            m_src_trans_points.push_back(1);
-//            m_src_trans_points.push_back(1);
-//        }
-//
-//        {
-//            for (int i = 0, size = m_dst_trans_points.size(); i < size; i += 2) {
-//                m_dst_trans_points[i] = m_dst_trans_points[i] / width;
-//                m_dst_trans_points[i + 1] = m_dst_trans_points[i + 1] / height;
-//            }
-//            m_dst_trans_points.push_back(0);
-//            m_dst_trans_points.push_back(0);
-//            m_dst_trans_points.push_back(1);
-//            m_dst_trans_points.push_back(0);
-//            m_dst_trans_points.push_back(0);
-//            m_dst_trans_points.push_back(1);
-//            m_dst_trans_points.push_back(1);
-//            m_dst_trans_points.push_back(1);
-//        }
-//
-//        m_average_points.clear();
-//        for (int i = 0, size = m_src_trans_points.size(); i < size; ++i) {
-//            m_average_points.push_back((m_src_trans_points[i] + m_dst_trans_points[i]) / 2.);
-//        }
-//
-////        _INFO("generate triangle success! triangles: %d, i: %d", m_triangle_pcount, i);
-//    }
-
-private:
     MorphImage m_src_img;
-
     MorphImage m_dst_img;
 
-
-    Array m_src_triangle_points;
-    Array m_dst_triangle_points;
-
-    Array m_percent_triangle_points;
+    Array m_vertex_points;
 
     FaceMorphFilter m_morph_filter;
     TextureFilter m_texture_filter;
