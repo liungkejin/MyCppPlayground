@@ -8,7 +8,9 @@
 
 #include <Playground.h>
 
-#ifdef __OS_HARMONY__
+#if defined(__OS_HARMONY__)
+#include <GLES3/gl3.h>
+#elif defined(__ANDROID__)
 #include <GLES3/gl3.h>
 #else
 #include <OpenGL/gl3.h>

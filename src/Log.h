@@ -11,13 +11,22 @@
 #include "tinyformat.h"
 #include <cstdio>
 
-#ifdef __OS_HARMONY__
+#if defined(__OS_HARMONY__)
 #include <hilog/log.h>
 
 #define __LOG_DEBUG(msg) OH_LOG_DEBUG(LOG_APP, "%{public}s", msg);
 #define __LOG_INFO(msg)  OH_LOG_INFO( LOG_APP, "%{public}s", msg);
 #define __LOG_WARN(msg)  OH_LOG_WARN( LOG_APP, "%{public}s", msg);
 #define __LOG_ERROR(msg) OH_LOG_ERROR(LOG_APP, "%{public}s", msg);
+
+#elif defined(__ANDROID__)
+#include <android/log.h>
+#define LOG_TAG "zzz_bhs"
+
+#define __LOG_DEBUG(msg) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, "%s", msg);
+#define __LOG_INFO(msg)  __android_log_print(ANDROID_LOG_INFO, LOG_TAG, "%s", msg);
+#define __LOG_WARN(msg)  __android_log_print(ANDROID_LOG_WARN, LOG_TAG, "%s", msg);
+#define __LOG_ERROR(msg) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, "%s", msg);
 
 #else
 
@@ -66,7 +75,7 @@ static inline std::string __prettyMethodName(const std::string &prettyFunction) 
             __LOG_INFO(_log_str.c_str());                                                              \
         }                                                                                                              \
     } while (0)
-    
+
 #define _WARN(fmt, args...)                                                                                            \
     do {                                                                                                               \
         std::string _log_str = __PRETTY_FORMAT(fmt, ##args);                                                           \
