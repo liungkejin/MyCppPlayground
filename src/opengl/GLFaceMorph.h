@@ -17,6 +17,13 @@ struct TransStatus {
     float rotate;
     float trans_x;
     float trans_y;
+
+    std::string toString() const {
+        char ss[64];
+        snprintf(ss, 64,
+                 "{scale: %.2f, rotate: %.2f, trans x: %.2f, y: %.2f}", scale, rotate, trans_x, trans_y);
+        return std::string(ss);
+    }
 };
 
 class Landmark {
@@ -93,7 +100,7 @@ public:
 
         float dx = rx - lx;
         float dy = ry - ly;
-        return atan2(dy, dx);
+        return 360 - (float) (atan2(dy, dx) * 180 / M_PI);
     }
 
     Landmark &scale(float sa) {
@@ -310,6 +317,7 @@ public:
 
     TransStatus getFinalTransStatus(MorphImage &dst) const {
         float sumScale = dst.eyeDistance() / eyeDistance();
+//        _INFO("dst eye angle: %.2f, src eye angle: %.2f", dst.eyeAngle(), eyeAngle());
         TransStatus status = {
                 .scale = sumScale,
                 .rotate = dst.eyeAngle() - eyeAngle(),
@@ -409,6 +417,7 @@ public:
         int dstHeight = (int) m_dst_img.height();
         m_src_img.scaleTo(m_texture_filter, dstWidth, dstHeight);
 
+        // 一边没识别到点，或者点位不一致，不能转换，简单的渐变混合
         if (!m_src_img.canTransform(m_dst_img)) {
             // 简单混合
             m_morph_filter.setFullVertexCoord();
@@ -424,10 +433,12 @@ public:
         TransStatus finalTrans = m_src_img.getFinalTransStatus(m_dst_img);
         TransStatus srcStatus = {
                 .scale = 1 + (finalTrans.scale - 1) * percent,
-                .rotate = finalTrans.rotate * percent,
+                .rotate = -finalTrans.rotate * percent,
                 .trans_x = finalTrans.trans_x * percent,
                 .trans_y = finalTrans.trans_y * percent
         };
+//        _INFO("final trans: %s", finalTrans.toString());
+//        _INFO("cur trans: %s", srcStatus.toString());
 
 //        _INFO("cur src scale: %.2f, cur src trans(%.2f, %.2f)", curSrcScale, curSrcTransX, curSrcTransY);
         Landmark curSrcLandmark;

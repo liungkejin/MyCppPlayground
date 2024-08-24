@@ -18,11 +18,11 @@ void initialize() {
 
     std::string imageDir = std::string(ASSERTS_PATH) + "/images/raw";
     {
-        std::string aImgPath = imageDir + "/2015:02.jpg";
+        std::string aImgPath = imageDir + "/49907.png";
         cv::Mat src = cv::imread(aImgPath);
 
         DetectResult &srcFP = faceDetector.detect(src.data, src.cols, src.rows,
-                                                  HF_CAMERA_ROTATION_0, HF_STREAM_BGR, true);
+                                                  HF_CAMERA_ROTATION_270, HF_STREAM_BGR, true);
         FaceData *f = srcFP.face(0);
         std::vector<float> points;
         if (f) {
@@ -37,11 +37,11 @@ void initialize() {
         faceMorph.setSrcKeyPoints(landmark, 55, 105, 22);
     }
 
-    std::string bImgPath = imageDir + "/WechatIMG6311.jpg";
+    std::string bImgPath = imageDir + "/49915.png";
     cv::Mat dst = cv::imread(bImgPath);
     {
         DetectResult &srcFP = faceDetector.detect(dst.data, dst.cols, dst.rows,
-                                                  HF_CAMERA_ROTATION_0, HF_STREAM_BGR, true);
+                                                  HF_CAMERA_ROTATION_90, HF_STREAM_BGR, true);
         FaceData *f = srcFP.face(0);
         std::vector<float> points;
         if (f) {
@@ -54,33 +54,33 @@ void initialize() {
         Landmark landmark(dst.cols, dst.rows, points);
         faceMorph.setDstKeyPoints(landmark, 55, 105, 22);
 
-        if (false) {
+        if (true) {
             cv::Mat img = dst;
             cv::Mat cl;
-            float scale = 1920.f / img.cols;
+            float scale = 4960.f / img.cols;
             cv::resize(img, cl, cv::Size(img.cols * scale, img.rows * scale));
             cv::Rect rect(f->x() * scale, f->y() * scale, f->width() * scale, f->height() * scale);
             cv::rectangle(cl, rect, cv::Scalar(255, 255, 0), 2);
 
             // 55 105 22
             for (int k = 0; k < f->numLandmarks(); ++k) {
-                cv::Mat ddd = cl.clone();
 
-                if (k != 55 && k != 105) {
-                    continue;
-                }
+//                if (k != 55 && k != 105) {
+//                    continue;
+//                }
 
                 cv::Point2f p(f->landmarkX(k), f->landmarkY(k));
                 printf("landmark（%d): %.2f, %.2f\n", k,  p.x, p.y);
 
                 cv::Point2f drawP = p * scale;
-                cv::circle(ddd, drawP, 0, cv::Scalar(0, 0, 255), 2);
+                cv::circle(cl, drawP, 2, cv::Scalar(0, 0, 255), 2);
                 std::string index = std::to_string(k);
-                cv::putText(ddd, index, drawP, cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0));
+                cv::putText(cl, index, drawP, cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0));
 
-                cv::imshow("11", ddd);
-                cv::waitKey(0);
             }
+//            cv::imshow("11", cl);
+//            cv::waitKey(0);
+            cv::imwrite("a.jpg", cl);
         }
     }
 
