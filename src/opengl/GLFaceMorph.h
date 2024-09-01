@@ -30,6 +30,13 @@ class Landmark {
 public:
     Landmark() {}
 
+    Landmark(float w, float h, const float *p, int psize, bool glCoord = false) : m_width(w), m_height(h) {
+        m_gl_coord = glCoord;
+        if (p) {
+            m_points.assign(p, p + psize);
+        }
+    }
+
     Landmark(float w, float h, const std::vector<float> &p, bool glCoord = false) : m_width(w), m_height(h) {
         m_gl_coord = glCoord;
         m_points = p;
@@ -426,6 +433,9 @@ public:
 
             m_output_fb.create(dstWidth, dstHeight);
             m_morph_filter.setViewport(dstWidth, dstHeight);
+            m_morph_filter.setAlpha(percent);
+            m_morph_filter.setSrcImg(m_src_img.inputTexture());
+            m_morph_filter.setDstImg(m_dst_img.inputTexture());
             m_morph_filter.render(&m_output_fb);
             return m_output_fb;
         }

@@ -49,7 +49,7 @@ public:
         uniform sampler2D inputImageTexture;
         uniform mediump float alpha;
         void main() {
-            vec4 c = texture(inputImageTexture, textureCoordinate);
+            vec4 c = texture2D(inputImageTexture, textureCoordinate);
             gl_FragColor = vec4(c.rgb, c.a*alpha);
         })";
 #else

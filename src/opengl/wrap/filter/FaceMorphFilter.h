@@ -80,8 +80,8 @@ protected:
 
         uniform mediump float alpha;
         void main() {
-            highp vec4 src = texture(srcImg, srcTexCoord);
-            highp vec4 dst = texture(dstImg, dstTexCoord);
+            highp vec4 src = texture2D(srcImg, srcTexCoord);
+            highp vec4 dst = texture2D(dstImg, dstTexCoord);
             highp vec4 fc = src * (1.0 - alpha) + dst * alpha;
             gl_FragColor = vec4(fc.xyz, 1.0);
         })";
